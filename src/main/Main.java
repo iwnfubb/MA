@@ -16,7 +16,7 @@ public class Main extends Application {
             BorderPane rootElement = root.load();
 
             primaryStage.setTitle("Hello World");
-            primaryStage.setScene(new Scene(rootElement, 800, 600));
+            primaryStage.setScene(new Scene(rootElement, 800, 800));
             primaryStage.show();
 
             Controller controller = root.getController();
