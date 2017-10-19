@@ -1,8 +1,11 @@
 package main;
 
+import imageprocess.ImageProcess;
+import imageprocess.Utils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import org.opencv.core.Mat;
@@ -14,13 +17,21 @@ import java.util.concurrent.TimeUnit;
 
 public class Controller {
     @FXML
+    private ImageView currentFrameView;
+    @FXML
+    private ImageView gmmFrameView;
+    @FXML
+    private ImageView gaussianBlurView;
+    @FXML
+    private ImageView knnView;
+    @FXML
+    private Slider gmmHistory;
+    @FXML
+    private Slider knnHistory;
+    @FXML
+    private Slider gaussianBlur;
+    @FXML
     private Button button;
-    // the FXML image view
-    @FXML
-    private ImageView currentFrame;
-
-    @FXML
-    private ImageView gmmFrame;
 
     // a timer for acquiring the video stream
     private ScheduledExecutorService timer;
@@ -30,7 +41,7 @@ public class Controller {
     // a flag to change the button behavior
     private boolean cameraActive = false;
     // the id of the camera to be used
-    private static int cameraId = 0;
+    private static int cameraId = 1;
 
 
     /**
@@ -40,6 +51,7 @@ public class Controller {
      */
     @FXML
     protected void startCamera(ActionEvent event) {
+        ini();
         if (!this.cameraActive) {
             // start the video capture
             this.capture.open(cameraId);
@@ -51,17 +63,29 @@ public class Controller {
                 // grab a frame every 33 ms (30 frames/sec)
                 Runnable frameGrabber = () -> {
                     // effectively grab and process a single frame
-                    Mat originalFrameframe = imgProcess.getOriginalFrame();
+                    Mat originalFrame = imgProcess.getOriginalFrame();
+                    Mat gaussianBlurFrame = imgProcess.getGaussianBlur();
                     Mat mmgFrame = imgProcess.getGaussianMixtureModel();
+                    Mat knnFrame = imgProcess.getKNNModel();
 
                     // convert and show the frame
-                    Image imageToShow = Utils.mat2Image(originalFrameframe);
-                    updateImageView(currentFrame, imageToShow);
+                    Image imageToShow = Utils.mat2Image(originalFrame);
+                    updateImageView(currentFrameView, imageToShow);
 
-                    // convert and show the frame
-                    Image mmgImageToShow = Utils.mat2Image(mmgFrame);
-                    updateImageView(gmmFrame, mmgImageToShow);
+                    if (!gaussianBlurFrame.empty()) {
+                        Image mmgImageToShow = Utils.mat2Image(gaussianBlurFrame);
+                        updateImageView(gaussianBlurView, mmgImageToShow);
+                    }
 
+                    if (!mmgFrame.empty()) {
+                        Image mmgImageToShow = Utils.mat2Image(mmgFrame);
+                        updateImageView(gmmFrameView, mmgImageToShow);
+                    }
+
+                    if (!knnFrame.empty()) {
+                        Image mmgImageToShow = Utils.mat2Image(knnFrame);
+                        updateImageView(knnView, mmgImageToShow);
+                    }
                 };
 
                 this.timer = Executors.newSingleThreadScheduledExecutor();
@@ -113,6 +137,28 @@ public class Controller {
 
     protected void setClosed() {
         this.stopAcquisition();
+    }
+
+    private void ini() {
+        gmmHistory.setMin(0);
+        gmmHistory.setMax(500);
+        gmmHistory.setValue(100);
+        gmmHistory.valueProperty().addListener((observable, oldValue, newValue) -> {
+            imgProcess.setHistoryGMM(newValue.intValue());
+        });
+
+        knnHistory.setMin(0);
+        knnHistory.setMax(500);
+        knnHistory.setValue(100);
+        knnHistory.valueProperty().addListener((observable, oldValue, newValue) -> {
+            imgProcess.setHistoryGMM(newValue.intValue());
+        });
+
+        gaussianBlur.setMin(1);
+        gaussianBlur.setMax(45);
+        gaussianBlur.valueProperty().addListener((observable, oldValue, newValue) -> {
+            imgProcess.setGaussianFilterSize(newValue.intValue());
+        });
     }
 
 }

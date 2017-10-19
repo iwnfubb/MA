@@ -17,6 +17,7 @@ public class Main extends Application {
 
             primaryStage.setTitle("Hello World");
             primaryStage.setScene(new Scene(rootElement, 800, 800));
+            primaryStage.setResizable(false);
             primaryStage.show();
 
             Controller controller = root.getController();
