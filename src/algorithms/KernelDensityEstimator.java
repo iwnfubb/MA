@@ -55,6 +55,7 @@ public class KernelDensityEstimator {
         }
     }
 
+    //TODO fix medianAbsolutDeviation
     private double kernelFunction(double medianAbsolutDeviation) {
         return medianAbsolutDeviation / (0.68d * Math.sqrt(2.0d));
     }
