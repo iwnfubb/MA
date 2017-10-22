@@ -1,5 +1,6 @@
 package imageprocess;
 
+import algorithms.KernelDensityEstimator;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
@@ -16,6 +17,7 @@ public class ImageProcess {
     private BackgroundSubtractorMOG2 pMOG2;
     private BackgroundSubtractorKNN pknn;
     private Size gaussianFilterSize = (new Size(3, 3));
+    KernelDensityEstimator kde;
 
     public ImageProcess(VideoCapture capture) {
         this.capture = capture;
@@ -23,15 +25,14 @@ public class ImageProcess {
         pMOG2.setHistory(100);
         pknn = Video.createBackgroundSubtractorKNN();
         pknn.setHistory(100);
+        kde = new KernelDensityEstimator();
+        kde.setN(5);
     }
 
     public Mat getOriginalFrame() {
         if (this.capture.isOpened()) {
             try {
                 this.capture.read(currentFrame);
-                if (!currentFrame.empty()) {
-                    //Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2GRAY);
-                }
             } catch (Exception e) {
                 System.err.println("Exception during the image elaboration: " + e);
             }
@@ -58,6 +59,24 @@ public class ImageProcess {
         }
         return frame;
     }
+
+    public Mat getKDEModel() {
+        Mat frame = new Mat();
+        Mat blurFrame = new Mat();
+        if (!currentFrame.empty()) {
+            Imgproc.resize(currentFrame, blurFrame, new Size(currentFrame.width() / 2, currentFrame.height() / 2));
+            Imgproc.GaussianBlur(blurFrame, blurFrame, gaussianFilterSize, 0);
+
+            try {
+                frame = kde.foregroundMask(blurFrame);
+            } catch (KernelDensityEstimator.KernelDensityEstimatorException e) {
+                log("Error");
+                e.printStackTrace();
+            }
+        }
+        return frame;
+    }
+
 
     public Mat getGaussianBlur() {
         Mat blurFrame = new Mat();
@@ -112,6 +131,12 @@ public class ImageProcess {
         log("Change Gaussian filter size to:" + validSize);
         gaussianFilterSize = new Size(validSize, validSize);
     }
+
+    public void setKDEThreshole(double threshole) {
+        log("Change KDE Threshold to:" + threshole);
+        kde.setThreshold(threshole);
+    }
+
 
     private void log(Object o) {
         System.out.println(o);

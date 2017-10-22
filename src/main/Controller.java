@@ -25,13 +25,18 @@ public class Controller {
     @FXML
     private ImageView knnView;
     @FXML
+    private ImageView kdeView;
+    @FXML
     private Slider gmmHistory;
     @FXML
     private Slider knnHistory;
     @FXML
     private Slider gaussianBlur;
     @FXML
+    private Slider kdeThreshold;
+    @FXML
     private Button button;
+
 
     // a timer for acquiring the video stream
     private ScheduledExecutorService timer;
@@ -41,7 +46,7 @@ public class Controller {
     // a flag to change the button behavior
     private boolean cameraActive = false;
     // the id of the camera to be used
-    private static int cameraId = 1;
+    private static int cameraId = 0;
 
 
     /**
@@ -67,8 +72,8 @@ public class Controller {
                     Mat gaussianBlurFrame = imgProcess.getGaussianBlur();
                     Mat mmgFrame = imgProcess.getGaussianMixtureModel();
                     Mat knnFrame = imgProcess.getKNNModel();
+                    Mat kdeFrame = imgProcess.getKDEModel();
 
-                    // convert and show the frame
                     Image imageToShow = Utils.mat2Image(originalFrame);
                     updateImageView(currentFrameView, imageToShow);
 
@@ -85,6 +90,11 @@ public class Controller {
                     if (!knnFrame.empty()) {
                         Image mmgImageToShow = Utils.mat2Image(knnFrame);
                         updateImageView(knnView, mmgImageToShow);
+                    }
+
+                    if (!kdeFrame.empty()) {
+                        Image mmgImageToShow = Utils.mat2Image(kdeFrame);
+                        updateImageView(kdeView, mmgImageToShow);
                     }
                 };
 
@@ -158,6 +168,12 @@ public class Controller {
         gaussianBlur.setMax(45);
         gaussianBlur.valueProperty().addListener((observable, oldValue, newValue) -> {
             imgProcess.setGaussianFilterSize(newValue.intValue());
+        });
+
+        kdeThreshold.setMin(0);
+        kdeThreshold.setMax(1.0);
+        kdeThreshold.valueProperty().addListener((observable, oldValue, newValue) -> {
+            imgProcess.setKDEThreshole(newValue.doubleValue());
         });
     }
 

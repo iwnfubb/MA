@@ -56,6 +56,21 @@
                   </AnchorPane>
                </items>
             </SplitPane>
+            <ImageView fx:id="kdeView" fitHeight="226.0" fitWidth="396.0" pickOnBounds="true" preserveRatio="true" GridPane.rowIndex="1" />
+            <SplitPane dividerPositions="0.13164556962025317" prefHeight="160.0" prefWidth="200.0" GridPane.rowIndex="2">
+              <items>
+                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="31.0" prefWidth="63.0">
+                     <children>
+                        <Label layoutX="1.0" layoutY="4.0" text="KDE" />
+                     </children>
+                  </AnchorPane>
+                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="31.0" prefWidth="355.0">
+                     <children>
+                        <Slider fx:id="kdeThreshold" layoutX="-1.0" layoutY="8.0" prefHeight="18.0" prefWidth="337.0" />
+                     </children>
+                  </AnchorPane>
+              </items>
+            </SplitPane>
          </children>
       </GridPane>
    </center>
