@@ -5,6 +5,7 @@ import imageprocess.Utils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -27,6 +28,12 @@ public class Controller {
     @FXML
     private ImageView kdeView;
     @FXML
+    private CheckBox gmmActive;
+    @FXML
+    private CheckBox knnActive;
+    @FXML
+    private CheckBox kdeActive;
+    @FXML
     private Slider gmmHistory;
     @FXML
     private Slider knnHistory;
@@ -36,7 +43,6 @@ public class Controller {
     private Slider kdeThreshold;
     @FXML
     private Button button;
-
 
     // a timer for acquiring the video stream
     private ScheduledExecutorService timer;
@@ -70,9 +76,6 @@ public class Controller {
                     // effectively grab and process a single frame
                     Mat originalFrame = imgProcess.getOriginalFrame();
                     Mat gaussianBlurFrame = imgProcess.getGaussianBlur();
-                    Mat mmgFrame = imgProcess.getGaussianMixtureModel();
-                    Mat knnFrame = imgProcess.getKNNModel();
-                    Mat kdeFrame = imgProcess.getKDEModel();
 
                     Image imageToShow = Utils.mat2Image(originalFrame);
                     updateImageView(currentFrameView, imageToShow);
@@ -82,19 +85,28 @@ public class Controller {
                         updateImageView(gaussianBlurView, mmgImageToShow);
                     }
 
-                    if (!mmgFrame.empty()) {
-                        Image mmgImageToShow = Utils.mat2Image(mmgFrame);
-                        updateImageView(gmmFrameView, mmgImageToShow);
+                    if (gmmActive.isSelected()) {
+                        Mat gmmFrame = imgProcess.getGaussianMixtureModel();
+                        if (!gmmFrame.empty()) {
+                            Image mmgImageToShow = Utils.mat2Image(gmmFrame);
+                            updateImageView(gmmFrameView, mmgImageToShow);
+                        }
                     }
 
-                    if (!knnFrame.empty()) {
-                        Image mmgImageToShow = Utils.mat2Image(knnFrame);
-                        updateImageView(knnView, mmgImageToShow);
+                    if (knnActive.isSelected()) {
+                        Mat knnFrame = imgProcess.getKNNModel();
+                        if (!knnFrame.empty()) {
+                            Image mmgImageToShow = Utils.mat2Image(knnFrame);
+                            updateImageView(knnView, mmgImageToShow);
+                        }
                     }
 
-                    if (!kdeFrame.empty()) {
-                        Image mmgImageToShow = Utils.mat2Image(kdeFrame);
-                        updateImageView(kdeView, mmgImageToShow);
+                    if (kdeActive.isSelected()) {
+                        Mat kdeFrame = imgProcess.getKDEModel();
+                        if (!kdeFrame.empty()) {
+                            Image mmgImageToShow = Utils.mat2Image(kdeFrame);
+                            updateImageView(kdeView, mmgImageToShow);
+                        }
                     }
                 };
 
@@ -170,7 +182,7 @@ public class Controller {
             imgProcess.setGaussianFilterSize(newValue.intValue());
         });
 
-        kdeThreshold.setMin(0);
+        kdeThreshold.setMin(-1.0);
         kdeThreshold.setMax(1.0);
         kdeThreshold.valueProperty().addListener((observable, oldValue, newValue) -> {
             imgProcess.setKDEThreshole(newValue.doubleValue());

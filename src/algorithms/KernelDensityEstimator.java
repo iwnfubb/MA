@@ -1,14 +1,9 @@
 package algorithms;
 
-import com.sun.scenario.effect.GaussianShadow;
-import com.sun.scenario.effect.impl.state.GaussianBlurState;
-import javafx.print.Printer;
 import org.opencv.core.*;
-import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 public class KernelDensityEstimator {
     private ArrayList<Mat> historyMat = new ArrayList<>();
@@ -67,13 +62,15 @@ public class KernelDensityEstimator {
     }
 
     private double factor(double chanel, double historyChanel, double madChanel) {
-        return Gaussian.pdf(chanel, historyChanel, madChanel);
+        double firstTerm = Math.sqrt(2 * Math.PI * kernelFunction(0));
+        double secondTerm = -0.5d * Math.pow((chanel - historyChanel), 2);
+        return 1 / Math.sqrt(firstTerm) * secondTerm;
     }
 
     private void updateHistoryMat(Mat mat) {
         if (historyMat.size() <= N) {
             historyMat.add(mat);
-        } else if (historyMat.size() >= N) {
+        } else if (historyMat.size() > N) {
             historyMat.set(dirtyIndex, mat);
             dirtyIndex = (dirtyIndex++) % historyMat.size();
         }

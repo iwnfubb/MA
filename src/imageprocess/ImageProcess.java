@@ -26,7 +26,7 @@ public class ImageProcess {
         pknn = Video.createBackgroundSubtractorKNN();
         pknn.setHistory(100);
         kde = new KernelDensityEstimator();
-        kde.setN(5);
+        kde.setN(10);
     }
 
     public Mat getOriginalFrame() {
