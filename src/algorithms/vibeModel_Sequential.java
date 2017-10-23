@@ -76,7 +76,7 @@ public class vibeModel_Sequential {
         }
     }
 
-    public void libvibeModel_Sequential_AllocInit_8u_C3R(Mat image_data) {
+    public void vibeModel_Sequential_Init_8u_C3R(Mat image_data) {
         this.width = image_data.width();
         this.height = image_data.height();
         for (int i = 0; i < NUMBER_OF_HISTORY_IMAGES; i++) {
@@ -145,7 +145,7 @@ public class vibeModel_Sequential {
         }
     }
 
-    public Mat libvibeModel_Sequential_Segmentation_8u_C3R(Mat image_data, Mat segmentation_map) {
+    public void vibeModel_Segmentation_8u_C3R(Mat image_data, Mat segmentation_map) {
         /* Segmentation. */
         for (int y = 0; y < image_data.height(); y++)
             for (int x = 0; x < image_data.width(); x++) {
@@ -218,10 +218,9 @@ public class vibeModel_Sequential {
                 }
             }
         }
-        return segmentation_map;
     }
 
-    public void libvibeModel_Sequential_Update_8u_C3R(Mat image_data, Mat updating_mask) {
+    public void vibeModel_Update_8u_C3R(Mat image_data, Mat updating_mask) {
          /* All the frame, except the border. */
         int shift, indX, indY;
         int x, y;

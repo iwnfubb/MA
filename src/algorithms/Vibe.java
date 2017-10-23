@@ -16,10 +16,10 @@ public class Vibe {
     public Mat foregroundMask(Mat currentFrame) {
         if (frameNumber == 1) {
             segmentationMap = new Mat(currentFrame.rows(), currentFrame.cols(), CvType.CV_8UC1);
-            model.libvibeModel_Sequential_AllocInit_8u_C3R(currentFrame);
+            model.vibeModel_Sequential_Init_8u_C3R(currentFrame);
         }else {
-            segmentationMap = model.libvibeModel_Sequential_Segmentation_8u_C3R(currentFrame, segmentationMap);
-            model.libvibeModel_Sequential_Update_8u_C3R(currentFrame, segmentationMap);
+            model.vibeModel_Segmentation_8u_C3R(currentFrame, segmentationMap);
+            model.vibeModel_Update_8u_C3R(currentFrame, segmentationMap);
         }
         frameNumber++;
         return segmentationMap;
