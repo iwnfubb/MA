@@ -6,7 +6,7 @@ import org.opencv.core.Mat;
 import java.util.ArrayList;
 import java.util.Random;
 
-public class vibeModel_Sequential {
+public class VibeModel {
     /* Parameters. */
     private int width;
     private int height;
@@ -29,7 +29,7 @@ public class vibeModel_Sequential {
     Random rand;
 
 
-    public vibeModel_Sequential() {
+    public VibeModel() {
         rand = new Random();
         this.numberOfSamples = 10;
         this.matchingThreshold = 20;

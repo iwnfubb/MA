@@ -7,10 +7,10 @@ public class Vibe {
     /* Variables. */
     static int frameNumber = 1; /* The current frame number */
     Mat segmentationMap;        /* Will contain the segmentation map. This is the binary output map. */
-    public vibeModel_Sequential model;
+    public VibeModel model;
 
     public Vibe() {
-        this.model =  new vibeModel_Sequential();
+        this.model =  new VibeModel();
     }
 
     public Mat foregroundMask(Mat currentFrame) {
