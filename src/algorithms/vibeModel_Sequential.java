@@ -172,7 +172,8 @@ public class vibeModel_Sequential {
                     double[] hisPixel = hisImg.get(y, x);
                     if (distance_is_close_8u_C3R((int) pixel[0], (int) pixel[1], (int) pixel[2],
                             (int) hisPixel[0], (int) hisPixel[1], (int) hisPixel[2], (int) matchingThreshold)) {
-                        --segmentation_map.get(y, x)[0];
+                        segmentation_map.put(y, x, --segmentation_map.get(y, x)[0]);
+                        ;
                     }
                 }
         }
