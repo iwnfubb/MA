@@ -1,6 +1,7 @@
 package imageprocess;
 
 import algorithms.KernelDensityEstimator;
+import algorithms.Vibe;
 import org.opencv.core.Mat;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
@@ -18,6 +19,7 @@ public class ImageProcess {
     private BackgroundSubtractorKNN pknn;
     private Size gaussianFilterSize = (new Size(3, 3));
     KernelDensityEstimator kde;
+    Vibe vibe;
 
     public ImageProcess(VideoCapture capture) {
         this.capture = capture;
@@ -27,6 +29,7 @@ public class ImageProcess {
         pknn.setHistory(100);
         kde = new KernelDensityEstimator();
         kde.setN(10);
+        vibe = new Vibe();
     }
 
     public Mat getOriginalFrame() {
@@ -73,6 +76,17 @@ public class ImageProcess {
                 log("Error");
                 e.printStackTrace();
             }
+        }
+        return frame;
+    }
+
+    public Mat getVibeModel() {
+        Mat frame = new Mat();
+        Mat blurFrame = new Mat();
+        if (!currentFrame.empty()) {
+            Imgproc.resize(currentFrame, blurFrame, new Size(currentFrame.width() / 2, currentFrame.height() / 2));
+            Imgproc.GaussianBlur(blurFrame, blurFrame, gaussianFilterSize, 0);
+            frame = vibe.foregroundMask(blurFrame);
         }
         return frame;
     }
@@ -135,6 +149,11 @@ public class ImageProcess {
     public void setKDEThreshole(double threshole) {
         log("Change KDE Threshold to:" + threshole);
         kde.setThreshold(threshole);
+    }
+
+    public void setVibeThreshole(double threshole) {
+        log("Change Vibe Threshold to:" + threshole);
+        vibe.model.setMatchingThreshold(threshole);
     }
 
 

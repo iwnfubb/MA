@@ -22,7 +22,7 @@ public class KernelDensityEstimator {
     }
 
     public Mat foregroundMask(Mat currentFrame) throws KernelDensityEstimatorException {
-        Mat foreGround = new Mat(currentFrame.rows(), currentFrame.cols(), currentFrame.type());
+        Mat foreGround = new Mat(currentFrame.rows(), currentFrame.cols(), CvType.CV_8UC1);
         if (currentFrame.channels() != 3) {
             throw new KernelDensityEstimatorException("Frame chanel muss be 3!");
         }
@@ -49,9 +49,9 @@ public class KernelDensityEstimator {
                     }
                     kdeValue /= historyMat.size();
                     if (kdeValue < threshold) {
-                        foreGround.put(y, x, new double[]{255, 255, 255});
+                        foreGround.put(y, x, 255);
                     } else {
-                        foreGround.put(y, x, new double[]{0, 0, 0});
+                        foreGround.put(y, x, 0);
                     }
                 }
             }

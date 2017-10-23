@@ -28,11 +28,15 @@ public class Controller {
     @FXML
     private ImageView kdeView;
     @FXML
+    private ImageView vibeView;
+    @FXML
     private CheckBox gmmActive;
     @FXML
     private CheckBox knnActive;
     @FXML
     private CheckBox kdeActive;
+    @FXML
+    private CheckBox vibeActive;
     @FXML
     private Slider gmmHistory;
     @FXML
@@ -41,6 +45,8 @@ public class Controller {
     private Slider gaussianBlur;
     @FXML
     private Slider kdeThreshold;
+    @FXML
+    private Slider vibeThreshold;
     @FXML
     private Button button;
 
@@ -52,7 +58,7 @@ public class Controller {
     // a flag to change the button behavior
     private boolean cameraActive = false;
     // the id of the camera to be used
-    private static int cameraId = 0;
+    private static int cameraId = 1;
 
 
     /**
@@ -106,6 +112,14 @@ public class Controller {
                         if (!kdeFrame.empty()) {
                             Image mmgImageToShow = Utils.mat2Image(kdeFrame);
                             updateImageView(kdeView, mmgImageToShow);
+                        }
+                    }
+
+                    if (vibeActive.isSelected()) {
+                        Mat vibeFrame = imgProcess.getVibeModel();
+                        if (!vibeFrame.empty()) {
+                            Image mmgImageToShow = Utils.mat2Image(vibeFrame);
+                            updateImageView(vibeView, mmgImageToShow);
                         }
                     }
                 };
@@ -185,6 +199,12 @@ public class Controller {
         kdeThreshold.setMin(-1.0);
         kdeThreshold.setMax(1.0);
         kdeThreshold.valueProperty().addListener((observable, oldValue, newValue) -> {
+            imgProcess.setKDEThreshole(newValue.doubleValue());
+        });
+
+        vibeThreshold.setMin(-50.0);
+        vibeThreshold.setMax(50.0);
+        vibeThreshold.valueProperty().addListener((observable, oldValue, newValue) -> {
             imgProcess.setKDEThreshole(newValue.doubleValue());
         });
     }

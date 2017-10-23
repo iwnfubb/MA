@@ -6,21 +6,23 @@ import org.opencv.core.Mat;
 public class Vibe {
     /* Variables. */
     static int frameNumber = 1; /* The current frame number */
-    Mat frame;                  /* Current frame. */
     Mat segmentationMap;        /* Will contain the segmentation map. This is the binary output map. */
-    int keyboard = 0;           /* Input from keyboard. Used to stop the program. Enter 'q' to quit. */
+    public vibeModel_Sequential model;
 
-    public Vibe(){
-
+    public Vibe() {
+        this.model =  new vibeModel_Sequential();
     }
 
-    private void foregroundMask(Mat currentFrame){
+    public Mat foregroundMask(Mat currentFrame) {
         if (frameNumber == 1) {
-            segmentationMap = new Mat(frame.rows(), frame.cols(), CvType.CV_8UC1);
-            //model = (vibeModel_Sequential_t*)libvibeModel_Sequential_New();
-            //libvibeModel_Sequential_AllocInit_8u_C3R(model, frame.data, frame.cols, frame.rows);
+            segmentationMap = new Mat(currentFrame.rows(), currentFrame.cols(), CvType.CV_8UC1);
+            model.libvibeModel_Sequential_AllocInit_8u_C3R(currentFrame);
+        }else {
+            segmentationMap = model.libvibeModel_Sequential_Segmentation_8u_C3R(currentFrame, segmentationMap);
+            model.libvibeModel_Sequential_Update_8u_C3R(currentFrame, segmentationMap);
         }
-
+        frameNumber++;
+        return segmentationMap;
     }
 
 }

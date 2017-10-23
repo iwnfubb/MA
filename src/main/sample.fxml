@@ -110,6 +110,34 @@
               </items>
             </SplitPane>
             <ImageView fx:id="kdeView" fitHeight="226.0" fitWidth="396.0" pickOnBounds="true" preserveRatio="true" GridPane.rowIndex="1" />
+            <SplitPane dividerPositions="0.3670886075949367" prefHeight="160.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
+               <items>
+                  <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="31.0" prefWidth="150.0">
+                     <children>
+                        <SplitPane dividerPositions="0.32323232323232326" prefHeight="29.0" prefWidth="200.0">
+                           <items>
+                              <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="158.0" prefWidth="69.0">
+                                 <children>
+                                    <Label layoutX="7.0" layoutY="4.0" prefHeight="21.0" prefWidth="47.0" text="Vibe" />
+                                 </children>
+                              </AnchorPane>
+                              <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="19.0" prefWidth="130.0">
+                                 <children>
+                                    <CheckBox fx:id="vibeActive" layoutY="4.0" mnemonicParsing="false" prefHeight="21.0" prefWidth="75.0" text="Active" />
+                                 </children>
+                              </AnchorPane>
+                           </items>
+                        </SplitPane>
+                     </children>
+                  </AnchorPane>
+                  <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="31.0" prefWidth="355.0">
+                     <children>
+                        <Slider fx:id="vibeThreshold" layoutX="-1.0" layoutY="8.0" prefHeight="18.0" prefWidth="239.0" />
+                     </children>
+                  </AnchorPane>
+               </items>
+            </SplitPane>
+            <ImageView fx:id="vibeView" fitHeight="230.0" fitWidth="403.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="1" GridPane.rowIndex="1" />
          </children>
       </GridPane>
    </center>
