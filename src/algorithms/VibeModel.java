@@ -199,7 +199,7 @@ public class VibeModel {
                                 (int) historyBuffer.get(numberOfTests).get(y, x)[1],
                                 (int) historyBuffer.get(numberOfTests).get(y, x)[2],
                                 (int) matchingThreshold)) {
-                            --segmentation_map.get(y, x)[0];
+                            segmentation_map.put(y, x, --segmentation_map.get(y, x)[0]);
                         }
 
                     /* Swaping: Putting found value in history image buffer. */
