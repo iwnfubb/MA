@@ -1,5 +1,6 @@
 package mainCpp;
 
+import com.sun.javafx.geom.Vec3d;
 import imageprocess.Utils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -8,11 +9,17 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import org.bytedeco.javacpp.indexer.FloatRawIndexer;
+import org.bytedeco.javacpp.indexer.Indexer;
+import org.bytedeco.javacpp.indexer.UByteBufferIndexer;
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_videoio.VideoCapture;
 import org.bytedeco.javacpp.opencv_xfeatures2d;
 import org.bytedeco.javacpp.opencv_features2d;
+import org.bytedeco.javacpp.opencv_imgproc;
+import org.bytedeco.javacpp.opencv_video;
+import org.opencv.core.Point;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -22,33 +29,17 @@ public class ControllerCPP {
     @FXML
     private ImageView currentFrameView;
     @FXML
-    private ImageView gmmFrameView;
+    private ImageView surfImgView;
     @FXML
     private ImageView gaussianBlurView;
     @FXML
-    private ImageView knnView;
+    private ImageView opticalFlowView;
     @FXML
-    private ImageView kdeView;
+    private CheckBox opticalFlowActive;
     @FXML
-    private ImageView vibeView;
-    @FXML
-    private CheckBox gmmActive;
-    @FXML
-    private CheckBox knnActive;
-    @FXML
-    private CheckBox kdeActive;
-    @FXML
-    private CheckBox vibeActive;
-    @FXML
-    private Slider gmmHistory;
-    @FXML
-    private Slider knnHistory;
+    private CheckBox surfImgActive;
     @FXML
     private Slider gaussianBlur;
-    @FXML
-    private Slider kdeThreshold;
-    @FXML
-    private Slider vibeThreshold;
     @FXML
     private Button button;
 
@@ -60,8 +51,9 @@ public class ControllerCPP {
     // a flag to change the button behavior
     private boolean cameraActive = false;
     // the id of the camera to be used
-    private static int cameraId = 0;
+    private static int cameraId = 1;
 
+    private Mat prevgray = new Mat();
 
     /**
      * The action triggered by pushing the button on the GUI
@@ -88,47 +80,52 @@ public class ControllerCPP {
                     updateImageView(currentFrameView, imageToShow);
 
                     if (!gaussianBlurFrame.empty()) {
-                        opencv_core.KeyPointVector keyPointVector = new opencv_core.KeyPointVector();
-                        opencv_xfeatures2d.SURF surf = opencv_xfeatures2d.SURF.create();
-                        surf.setUpright(false);
-                        surf.detect(gaussianBlurFrame, keyPointVector, new Mat());
-                        opencv_features2d.drawKeypoints(gaussianBlurFrame, keyPointVector, gaussianBlurFrame, new opencv_core.Scalar(0, 0, 255, 0), 4);
-
                         Image mmgImageToShow = Utils.mat2Image(gaussianBlurFrame);
                         updateImageView(gaussianBlurView, mmgImageToShow);
                     }
 
-                    if (gmmActive.isSelected()) {
-                        Mat gmmFrame = imgProcess.getGaussianMixtureModel();
-                        if (!gmmFrame.empty()) {
-                            Image mmgImageToShow = Utils.mat2Image(gmmFrame);
-                            updateImageView(gmmFrameView, mmgImageToShow);
-                        }
+                    if (surfImgActive.isSelected() && !gaussianBlurFrame.empty()) {
+                        Mat surfImg = new Mat();
+                        opencv_core.KeyPointVector keyPointVector = new opencv_core.KeyPointVector();
+                        opencv_xfeatures2d.SURF surf = opencv_xfeatures2d.SURF.create();
+                        surf.setUpright(false);
+                        surf.detect(gaussianBlurFrame, keyPointVector, new Mat());
+                        opencv_features2d.drawKeypoints(gaussianBlurFrame, keyPointVector, surfImg, new opencv_core.Scalar(0, 0, 255, 0), 4);
+                        Image mmgImageToShow = Utils.mat2Image(surfImg);
+                        updateImageView(surfImgView, mmgImageToShow);
                     }
 
-                    if (knnActive.isSelected()) {
-                        Mat knnFrame = imgProcess.getKNNModel();
-                        if (!knnFrame.empty()) {
-                            Image mmgImageToShow = Utils.mat2Image(knnFrame);
-                            updateImageView(knnView, mmgImageToShow);
-                        }
-                    }
 
-                    /*if (kdeActive.isSelected()) {
-                        Mat kdeFrame = imgProcess.getKDEModel();
-                        if (!kdeFrame.empty()) {
-                            Image mmgImageToShow = Utils.mat2Image(kdeFrame);
-                            updateImageView(kdeView, mmgImageToShow);
-                        }
-                    }
+                    if (opticalFlowActive.isSelected() && !gaussianBlurFrame.empty()) {
+                        Mat flow = new Mat(), img = new Mat();
+                        Mat flowUmat = new Mat();
+                        originalFrame.copyTo(img);
+                        opencv_imgproc.cvtColor(img, img, opencv_imgproc.COLOR_BGR2GRAY);
 
-                    if (vibeActive.isSelected()) {
-                        Mat vibeFrame = imgProcess.getVibeModel();
-                        if (!vibeFrame.empty()) {
-                            Image mmgImageToShow = Utils.mat2Image(vibeFrame);
-                            updateImageView(vibeView, mmgImageToShow);
+                        if (!prevgray.empty()) {
+                            opencv_video.calcOpticalFlowFarneback(prevgray, img, flowUmat, 0.4, 1, 12, 2, 8, 1.2, 0);
+                            flowUmat.copyTo(flow);
+                            FloatRawIndexer indexer = flow.createIndexer();
+                            for (int y = 0; y < originalFrame.rows(); y += 5)
+                                for (int x = 0; x < originalFrame.cols(); x += 5) {
+                                    //flow.get(x, y)
+                                    float flowatx = indexer.get(y, x, 0) * 5;
+                                    float flowaty = indexer.get(y, x, 1) * 5;
+                                    opencv_imgproc.line(originalFrame,
+                                            new opencv_core.Point(x, y),
+                                            new opencv_core.Point(Math.round(x + flowatx), Math.round(y + flowaty)),
+                                            new opencv_core.Scalar(255, 0, 0, 0));
+                                    opencv_imgproc.circle(originalFrame, new opencv_core.Point(x, y), 1, new opencv_core.Scalar(0, 255, 0, 0), -1, 0, 0);
+                                }
+                            img.copyTo(prevgray);
+                        } else {
+                            img.copyTo(prevgray);
+
                         }
-                    }*/
+
+                        Image mmgImageToShow = Utils.mat2Image(originalFrame);
+                        updateImageView(opticalFlowView, mmgImageToShow);
+                    }
                 };
 
                 this.timer = Executors.newSingleThreadScheduledExecutor();
@@ -183,36 +180,10 @@ public class ControllerCPP {
     }
 
     private void ini() {
-        gmmHistory.setMin(0);
-        gmmHistory.setMax(500);
-        gmmHistory.setValue(100);
-        gmmHistory.valueProperty().addListener((observable, oldValue, newValue) -> {
-            imgProcess.setHistoryGMM(newValue.intValue());
-        });
-
-        knnHistory.setMin(0);
-        knnHistory.setMax(500);
-        knnHistory.setValue(100);
-        knnHistory.valueProperty().addListener((observable, oldValue, newValue) -> {
-            imgProcess.setHistoryGMM(newValue.intValue());
-        });
-
         gaussianBlur.setMin(1);
         gaussianBlur.setMax(45);
         gaussianBlur.valueProperty().addListener((observable, oldValue, newValue) -> {
             imgProcess.setGaussianFilterSize(newValue.intValue());
-        });
-
-        kdeThreshold.setMin(-1.0);
-        kdeThreshold.setMax(1.0);
-        kdeThreshold.valueProperty().addListener((observable, oldValue, newValue) -> {
-            imgProcess.setKDEThreshole(newValue.doubleValue());
-        });
-
-        vibeThreshold.setMin(-50.0);
-        vibeThreshold.setMax(50.0);
-        vibeThreshold.valueProperty().addListener((observable, oldValue, newValue) -> {
-            imgProcess.setKDEThreshole(newValue.doubleValue());
         });
     }
 
