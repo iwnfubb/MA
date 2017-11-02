@@ -19,8 +19,11 @@ import org.bytedeco.javacpp.opencv_xfeatures2d;
 import org.bytedeco.javacpp.opencv_features2d;
 import org.bytedeco.javacpp.opencv_imgproc;
 import org.bytedeco.javacpp.opencv_video;
+import org.bytedeco.javacpp.opencv_ml;
 import org.opencv.core.Point;
 
+import javax.naming.SizeLimitExceededException;
+import java.nio.Buffer;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -35,11 +38,21 @@ public class ControllerCPP {
     @FXML
     private ImageView opticalFlowView;
     @FXML
+    private ImageView gmmWeightView;
+    @FXML
+    private ImageView gmmMeansView;
+    @FXML
     private CheckBox opticalFlowActive;
     @FXML
     private CheckBox surfImgActive;
     @FXML
+    private CheckBox gmmClusterActive;
+    @FXML
     private Slider gaussianBlur;
+    @FXML
+    private Slider hessianThreshold;
+    @FXML
+    private Slider nOctaveLayer;
     @FXML
     private Button button;
 
@@ -86,36 +99,36 @@ public class ControllerCPP {
 
                     if (surfImgActive.isSelected() && !gaussianBlurFrame.empty()) {
                         Mat surfImg = new Mat();
-                        opencv_core.KeyPointVector keyPointVector = new opencv_core.KeyPointVector();
-                        opencv_xfeatures2d.SURF surf = opencv_xfeatures2d.SURF.create();
-                        surf.setUpright(false);
-                        surf.detect(gaussianBlurFrame, keyPointVector, new Mat());
-                        opencv_features2d.drawKeypoints(gaussianBlurFrame, keyPointVector, surfImg, new opencv_core.Scalar(0, 0, 255, 0), 4);
+                        opencv_core.KeyPointVector surfKeyPoint = imgProcess.getSURFKeyPoint(gaussianBlurFrame, new Mat());
+                        opencv_features2d.drawKeypoints(gaussianBlurFrame, surfKeyPoint, surfImg, new opencv_core.Scalar(0, 0, 255, 0), 4);
                         Image mmgImageToShow = Utils.mat2Image(surfImg);
                         updateImageView(surfImgView, mmgImageToShow);
                     }
 
-
                     if (opticalFlowActive.isSelected() && !gaussianBlurFrame.empty()) {
                         Mat flow = new Mat(), img = new Mat();
                         Mat flowUmat = new Mat();
+                        Indexer indexer1 = originalFrame.createIndexer();
                         originalFrame.copyTo(img);
                         opencv_imgproc.cvtColor(img, img, opencv_imgproc.COLOR_BGR2GRAY);
 
                         if (!prevgray.empty()) {
-                            opencv_video.calcOpticalFlowFarneback(prevgray, img, flowUmat, 0.4, 1, 12, 2, 8, 1.2, 0);
+                            opencv_video.calcOpticalFlowFarneback(prevgray, img, flowUmat, 0.4, 1, 12, 2, 8, 1.5, 0);
                             flowUmat.copyTo(flow);
                             FloatRawIndexer indexer = flow.createIndexer();
-                            for (int y = 0; y < originalFrame.rows(); y += 5)
-                                for (int x = 0; x < originalFrame.cols(); x += 5) {
+                            for (int y = 0; y < originalFrame.rows(); y += 20)
+                                for (int x = 0; x < originalFrame.cols(); x += 20) {
                                     //flow.get(x, y)
-                                    float flowatx = indexer.get(y, x, 0) * 5;
-                                    float flowaty = indexer.get(y, x, 1) * 5;
+                                    float flowatx = indexer.get(y, x, 0) * 10;
+                                    float flowaty = indexer.get(y, x, 1) * 10;
                                     opencv_imgproc.line(originalFrame,
                                             new opencv_core.Point(x, y),
                                             new opencv_core.Point(Math.round(x + flowatx), Math.round(y + flowaty)),
-                                            new opencv_core.Scalar(255, 0, 0, 0));
-                                    opencv_imgproc.circle(originalFrame, new opencv_core.Point(x, y), 1, new opencv_core.Scalar(0, 255, 0, 0), -1, 0, 0);
+                                            new opencv_core.Scalar(0, 255, 0, 0));
+                                    opencv_imgproc.circle(originalFrame,
+                                            new opencv_core.Point(x, y),
+                                            2,
+                                            new opencv_core.Scalar(0, 0, 0, 0), -2, 4, 0);
                                 }
                             img.copyTo(prevgray);
                         } else {
@@ -125,6 +138,19 @@ public class ControllerCPP {
 
                         Image mmgImageToShow = Utils.mat2Image(originalFrame);
                         updateImageView(opticalFlowView, mmgImageToShow);
+                    }
+
+                    if (!gaussianBlurFrame.empty()) {
+                        opencv_ml.EM em = opencv_ml.EM.create();
+                        Mat labels = new Mat();
+                        Mat probs = new Mat();
+                        Mat samples = new Mat();
+                        gaussianBlurFrame.reshape(1, gaussianBlurFrame.rows() * gaussianBlurFrame.cols()).convertTo(samples, opencv_core.CV_32FC1, 1.0 / 255.0, 0.0);
+                        //em.train(samples, 3, labels);
+                        em.trainEM(samples, new Mat(), labels, probs);
+                        probs.reshape(5, gaussianBlurFrame.rows()).convertTo(probs, opencv_core.CV_8UC3, 255.0, 0);
+                        Image mmgImageToShow = Utils.mat2Image(probs);
+                        updateImageView(gmmWeightView, mmgImageToShow);
                     }
                 };
 
@@ -184,6 +210,18 @@ public class ControllerCPP {
         gaussianBlur.setMax(45);
         gaussianBlur.valueProperty().addListener((observable, oldValue, newValue) -> {
             imgProcess.setGaussianFilterSize(newValue.intValue());
+        });
+
+        hessianThreshold.setMin(1);
+        hessianThreshold.setMax(10000);
+        hessianThreshold.valueProperty().addListener((observable, oldValue, newValue) -> {
+            imgProcess.setHessianThreshold(newValue.intValue());
+        });
+
+        nOctaveLayer.setMin(1);
+        nOctaveLayer.setMax(45);
+        nOctaveLayer.valueProperty().addListener((observable, oldValue, newValue) -> {
+            imgProcess.setNOctaveLayer(newValue.intValue());
         });
     }
 
