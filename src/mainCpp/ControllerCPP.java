@@ -9,21 +9,19 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import org.bytedeco.javacpp.*;
 import org.bytedeco.javacpp.indexer.FloatRawIndexer;
 import org.bytedeco.javacpp.indexer.Indexer;
 import org.bytedeco.javacpp.indexer.UByteBufferIndexer;
-import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_videoio.VideoCapture;
-import org.bytedeco.javacpp.opencv_xfeatures2d;
-import org.bytedeco.javacpp.opencv_features2d;
-import org.bytedeco.javacpp.opencv_imgproc;
-import org.bytedeco.javacpp.opencv_video;
-import org.bytedeco.javacpp.opencv_ml;
 import org.opencv.core.Point;
 
 import javax.naming.SizeLimitExceededException;
 import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -143,7 +141,7 @@ public class ControllerCPP {
                     }
 
                     if (!gaussianBlurFrame.empty() && clusteringActive.isSelected() && surfKeyPoint.size() != 0) {
-                        System.out.println("Starting Clustering ...");
+                        System.out.println("Starting Clustering Texture...");
                         long startTime = System.currentTimeMillis();
                         Mat labels = new Mat();
                         Mat probs = new Mat();
@@ -152,9 +150,9 @@ public class ControllerCPP {
                         Mat samples = new Mat(new opencv_core.Size(3, (int) surfKeyPoint.size()), opencv_core.CV_8UC1);
                         for (int i = 0; i < surfKeyPoint.size(); i++) {
                             opencv_core.KeyPoint keyPoint = surfKeyPoint.get(i);
-                            byte b = (byte) (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(0) + 256);
-                            byte g = (byte) (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(1) + 256);
-                            byte r = (byte) (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(2) + 256);
+                            byte b = (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(0));
+                            byte g = (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(1));
+                            byte r = (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(2));
                             samples.ptr(i, 0).put(0, b);
                             samples.ptr(i, 1).put(0, g);
                             samples.ptr(i, 2).put(0, r);
@@ -172,9 +170,6 @@ public class ControllerCPP {
 
                         for (int i = 0; i < surfKeyPoint.size(); i++) {
                             opencv_core.KeyPoint keyPoint = surfKeyPoint.get(i);
-                            byte b = probs.ptr(i, 0).get(0);
-                            byte g = probs.ptr(i, 1).get(0);
-                            byte r = probs.ptr(i, 2).get(0);
                             opencv_core.Scalar scalar;
                             if (labels.ptr(i, 0).get(0) == 0)
                                 scalar = new opencv_core.Scalar(255, 0, 0, 0);
@@ -182,16 +177,63 @@ public class ControllerCPP {
                                 scalar = new opencv_core.Scalar(0, 255, 0, 0);
                             else
                                 scalar = new opencv_core.Scalar(0, 0, 255, 0);
-                                opencv_imgproc.circle(copyOfOriginal,
-                                        new opencv_core.Point((int) keyPoint.pt().x(), (int) keyPoint.pt().y()),
-                                        5,
-                                        scalar, -5, 4, 0);
+                            opencv_imgproc.circle(copyOfOriginal,
+                                    new opencv_core.Point((int) keyPoint.pt().x(), (int) keyPoint.pt().y()),
+                                    5,
+                                    scalar, -5, 4, 0);
+                        }
+                        System.out.println("Done3");
+                        Image mmgImageToShow = Utils.mat2Image(copyOfOriginal);
+                        updateImageView(gmmWeightView, mmgImageToShow);
+                        System.out.println("Clustering Time:" + (System.currentTimeMillis() - startTime));
+                    }
+
+                    if (!gaussianBlurFrame.empty() && clusteringActive.isSelected() && surfKeyPoint.size() != 0) {
+                        System.out.println("Starting Clustering Position ...");
+                        long startTime = System.currentTimeMillis();
+                        Mat labels = new Mat();
+                        Mat probs = new Mat();
+                        Mat copyOfOriginal = new Mat();
+                        originalFrame.copyTo(copyOfOriginal);
+                        float width = copyOfOriginal.arrayWidth();
+                        float height = copyOfOriginal.arrayHeight();
+                        Mat samples = new Mat(new opencv_core.Size(2, (int) surfKeyPoint.size()), opencv_core.CV_32FC1);
+                        for (int i = 0; i < surfKeyPoint.size(); i++) {
+                            opencv_core.KeyPoint keyPoint = surfKeyPoint.get(i);
+                            float x = keyPoint.pt().x();
+                            float y = keyPoint.pt().y();
+                            samples.ptr(i, 0).put(float2ByteArray(x / width));
+                            samples.ptr(i, 1).put(float2ByteArray(y / height));
+                        }
+                        System.out.println("Done1");
+
+                        opencv_ml.EM em = opencv_ml.EM.create();
+                        em.setClustersNumber(3);
+                        //gaussianBlurFrame.reshape(1, gaussianBlurFrame.rows() * gaussianBlurFrame.cols()).convertTo(samples, opencv_core.CV_32FC1, 1.0 / 255.0, 0.0);
+                        //samples.convertTo(samples, opencv_core.CV_32FC1, 1.0, 0.0);
+                        //em.train(samples, 3, labels);
+                        em.trainEM(samples, new Mat(), labels, probs);
+                        System.out.println("Done2");
+
+                        for (int i = 0; i < surfKeyPoint.size(); i++) {
+                            opencv_core.KeyPoint keyPoint = surfKeyPoint.get(i);
+                            opencv_core.Scalar scalar;
+                            if (labels.ptr(i, 0).get(0) == 0)
+                                scalar = new opencv_core.Scalar(255, 0, 0, 0);
+                            else if (labels.ptr(i, 0).get(0) == 1)
+                                scalar = new opencv_core.Scalar(0, 255, 0, 0);
+                            else
+                                scalar = new opencv_core.Scalar(0, 0, 255, 0);
+                            opencv_imgproc.circle(copyOfOriginal,
+                                    new opencv_core.Point((int) keyPoint.pt().x(), (int) keyPoint.pt().y()),
+                                    5,
+                                    scalar, -5, 4, 0);
 
                         }
                         System.out.println("Done3");
 
                         Image mmgImageToShow = Utils.mat2Image(copyOfOriginal);
-                        updateImageView(gmmWeightView, mmgImageToShow);
+                        updateImageView(gmmMeansView, mmgImageToShow);
 
                         System.out.println("Clustering Time:" + (System.currentTimeMillis() - startTime));
                     }
@@ -215,6 +257,15 @@ public class ControllerCPP {
             // stop the timer
             this.stopAcquisition();
         }
+    }
+
+    private static byte[] float2ByteArray(float value) {
+        byte[] array = ByteBuffer.allocate(4).putFloat(value).order(ByteOrder.LITTLE_ENDIAN).array();
+        byte[] result = new byte[4];
+        for (int i = 0; i < array.length; i++) {
+            result[i] = array[array.length - i - 1];
+        }
+        return result;
     }
 
     @FXML
