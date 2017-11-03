@@ -114,7 +114,8 @@
               </items>
             </SplitPane>
             <ImageView fx:id="gmmWeightView" fitHeight="232.0" fitWidth="397.0" pickOnBounds="true" preserveRatio="true" GridPane.rowIndex="2" />
-            <ImageView fx:id="gmmMeansView" fitHeight="222.0" fitWidth="406.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            <ImageView fx:id="gmmMeansView" fitHeight="229.0" fitWidth="406.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            <CheckBox fx:id="clusteringActive" mnemonicParsing="false" text="Clustering" GridPane.columnIndex="1" GridPane.rowIndex="1" />
          </children>
       </GridPane>
    </center>

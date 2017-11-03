@@ -46,7 +46,8 @@ public class ControllerCPP {
     @FXML
     private CheckBox surfImgActive;
     @FXML
-    private CheckBox gmmClusterActive;
+    private CheckBox clusteringActive;
+
     @FXML
     private Slider gaussianBlur;
     @FXML
@@ -97,35 +98,36 @@ public class ControllerCPP {
                         updateImageView(gaussianBlurView, mmgImageToShow);
                     }
 
+                    opencv_core.KeyPointVector surfKeyPoint = new opencv_core.KeyPointVector();
                     if (surfImgActive.isSelected() && !gaussianBlurFrame.empty()) {
                         Mat surfImg = new Mat();
-                        opencv_core.KeyPointVector surfKeyPoint = imgProcess.getSURFKeyPoint(gaussianBlurFrame, new Mat());
+                        surfKeyPoint = imgProcess.getSURFKeyPoint(gaussianBlurFrame, new Mat());
                         opencv_features2d.drawKeypoints(gaussianBlurFrame, surfKeyPoint, surfImg, new opencv_core.Scalar(0, 0, 255, 0), 4);
                         Image mmgImageToShow = Utils.mat2Image(surfImg);
                         updateImageView(surfImgView, mmgImageToShow);
                     }
 
                     if (opticalFlowActive.isSelected() && !gaussianBlurFrame.empty()) {
-                        Mat flow = new Mat(), img = new Mat();
+                        Mat flow = new Mat(), img = new Mat(), copyOfOriginal = new Mat();
                         Mat flowUmat = new Mat();
-                        Indexer indexer1 = originalFrame.createIndexer();
                         originalFrame.copyTo(img);
+                        originalFrame.copyTo(copyOfOriginal);
                         opencv_imgproc.cvtColor(img, img, opencv_imgproc.COLOR_BGR2GRAY);
 
                         if (!prevgray.empty()) {
                             opencv_video.calcOpticalFlowFarneback(prevgray, img, flowUmat, 0.4, 1, 12, 2, 8, 1.5, 0);
                             flowUmat.copyTo(flow);
                             FloatRawIndexer indexer = flow.createIndexer();
-                            for (int y = 0; y < originalFrame.rows(); y += 20)
-                                for (int x = 0; x < originalFrame.cols(); x += 20) {
+                            for (int y = 0; y < copyOfOriginal.rows(); y += 20)
+                                for (int x = 0; x < copyOfOriginal.cols(); x += 20) {
                                     //flow.get(x, y)
                                     float flowatx = indexer.get(y, x, 0) * 10;
                                     float flowaty = indexer.get(y, x, 1) * 10;
-                                    opencv_imgproc.line(originalFrame,
+                                    opencv_imgproc.line(copyOfOriginal,
                                             new opencv_core.Point(x, y),
                                             new opencv_core.Point(Math.round(x + flowatx), Math.round(y + flowaty)),
                                             new opencv_core.Scalar(0, 255, 0, 0));
-                                    opencv_imgproc.circle(originalFrame,
+                                    opencv_imgproc.circle(copyOfOriginal,
                                             new opencv_core.Point(x, y),
                                             2,
                                             new opencv_core.Scalar(0, 0, 0, 0), -2, 4, 0);
@@ -136,21 +138,62 @@ public class ControllerCPP {
 
                         }
 
-                        Image mmgImageToShow = Utils.mat2Image(originalFrame);
+                        Image mmgImageToShow = Utils.mat2Image(copyOfOriginal);
                         updateImageView(opticalFlowView, mmgImageToShow);
                     }
 
-                    if (!gaussianBlurFrame.empty()) {
-                        opencv_ml.EM em = opencv_ml.EM.create();
+                    if (!gaussianBlurFrame.empty() && clusteringActive.isSelected() && surfKeyPoint.size() != 0) {
+                        System.out.println("Starting Clustering ...");
+                        long startTime = System.currentTimeMillis();
                         Mat labels = new Mat();
                         Mat probs = new Mat();
-                        Mat samples = new Mat();
-                        gaussianBlurFrame.reshape(1, gaussianBlurFrame.rows() * gaussianBlurFrame.cols()).convertTo(samples, opencv_core.CV_32FC1, 1.0 / 255.0, 0.0);
+                        Mat copyOfOriginal = new Mat();
+                        originalFrame.copyTo(copyOfOriginal);
+                        Mat samples = new Mat(new opencv_core.Size(3, (int) surfKeyPoint.size()), opencv_core.CV_8UC1);
+                        for (int i = 0; i < surfKeyPoint.size(); i++) {
+                            opencv_core.KeyPoint keyPoint = surfKeyPoint.get(i);
+                            byte b = (byte) (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(0) + 256);
+                            byte g = (byte) (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(1) + 256);
+                            byte r = (byte) (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(2) + 256);
+                            samples.ptr(i, 0).put(0, b);
+                            samples.ptr(i, 1).put(0, g);
+                            samples.ptr(i, 2).put(0, r);
+                        }
+                        System.out.println("Done1");
+
+
+                        opencv_ml.EM em = opencv_ml.EM.create();
+                        em.setClustersNumber(3);
+                        //gaussianBlurFrame.reshape(1, gaussianBlurFrame.rows() * gaussianBlurFrame.cols()).convertTo(samples, opencv_core.CV_32FC1, 1.0 / 255.0, 0.0);
+                        samples.convertTo(samples, opencv_core.CV_32FC1, 1.0 / 255.0, 0.0);
                         //em.train(samples, 3, labels);
                         em.trainEM(samples, new Mat(), labels, probs);
-                        probs.reshape(5, gaussianBlurFrame.rows()).convertTo(probs, opencv_core.CV_8UC3, 255.0, 0);
-                        Image mmgImageToShow = Utils.mat2Image(probs);
+                        System.out.println("Done2");
+
+                        for (int i = 0; i < surfKeyPoint.size(); i++) {
+                            opencv_core.KeyPoint keyPoint = surfKeyPoint.get(i);
+                            byte b = probs.ptr(i, 0).get(0);
+                            byte g = probs.ptr(i, 1).get(0);
+                            byte r = probs.ptr(i, 2).get(0);
+                            opencv_core.Scalar scalar;
+                            if (labels.ptr(i, 0).get(0) == 0)
+                                scalar = new opencv_core.Scalar(255, 0, 0, 0);
+                            else if (labels.ptr(i, 0).get(0) == 1)
+                                scalar = new opencv_core.Scalar(0, 255, 0, 0);
+                            else
+                                scalar = new opencv_core.Scalar(0, 0, 255, 0);
+                                opencv_imgproc.circle(copyOfOriginal,
+                                        new opencv_core.Point((int) keyPoint.pt().x(), (int) keyPoint.pt().y()),
+                                        5,
+                                        scalar, -5, 4, 0);
+
+                        }
+                        System.out.println("Done3");
+
+                        Image mmgImageToShow = Utils.mat2Image(copyOfOriginal);
                         updateImageView(gmmWeightView, mmgImageToShow);
+
+                        System.out.println("Clustering Time:" + (System.currentTimeMillis() - startTime));
                     }
                 };
 
