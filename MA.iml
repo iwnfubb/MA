@@ -11,5 +11,6 @@
     <orderEntry type="library" exported="" name="javacpp" level="project" />
     <orderEntry type="library" exported="" name="opencv" level="project" />
     <orderEntry type="library" exported="" name="opencv-windows-x86_64" level="project" />
+    <orderEntry type="library" name="javaml-0.1.7" level="project" />
   </component>
 </module>
