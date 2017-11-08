@@ -5,7 +5,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
-import org.opencv.core.Core;
 
 public class MainCPP extends Application{
 
@@ -16,7 +15,7 @@ public class MainCPP extends Application{
             BorderPane rootElement = root.load();
 
             primaryStage.setTitle("Hello World");
-            primaryStage.setScene(new Scene(rootElement, 800, 800));
+            primaryStage.setScene(new Scene(rootElement, 1200, 800));
             primaryStage.setResizable(false);
             primaryStage.show();
 

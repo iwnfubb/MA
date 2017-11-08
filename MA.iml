@@ -8,9 +8,9 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="opencv-330" level="project" />
-    <orderEntry type="library" exported="" name="javacpp" level="project" />
-    <orderEntry type="library" exported="" name="opencv" level="project" />
-    <orderEntry type="library" exported="" name="opencv-windows-x86_64" level="project" />
-    <orderEntry type="library" name="javaml-0.1.7" level="project" />
+    <orderEntry type="library" name="javaml-0.1.5" level="project" />
+    <orderEntry type="library" name="javacpp" level="project" />
+    <orderEntry type="library" name="opencv-windows-x86_64" level="project" />
+    <orderEntry type="library" name="opencv" level="project" />
   </component>
 </module>
