@@ -130,8 +130,8 @@ public class ControllerCPP {
                         Image mmgImageToShow = Utils.mat2Image(classificationFrame);
                         updateImageView(gmmMeansView, mmgImageToShow);
                     }
-                    if (!gaussianBlurFrame.empty() && surfKeyPoint.size() != 0 && grabcutActive.isSelected()) {
-                        Mat grabcutFrame = imgProcess.grabCut(gaussianBlurFrame, surfKeyPoint, flow);
+                    if (!gaussianBlurFrame.empty() && surfKeyPoint.size() != 0 && grabcutActive.isSelected() && !flow.empty()) {
+                        Mat grabcutFrame = imgProcess.tobiModel(gaussianBlurFrame, surfKeyPoint, flow);
                         Image mmgImageToShow = Utils.mat2Image(grabcutFrame);
                         updateImageView(grabcutView, mmgImageToShow);
 

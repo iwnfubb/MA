@@ -192,6 +192,7 @@
                   </AnchorPane>
               </items>
             </SplitPane>
+            <ImageView fx:id="backgroundModel" fitHeight="213.0" fitWidth="410.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="2" GridPane.rowIndex="3" />
          </children>
       </GridPane>
    </top>
