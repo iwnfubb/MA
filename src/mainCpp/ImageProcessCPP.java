@@ -339,7 +339,6 @@ public class ImageProcessCPP {
     }
 
     Mat backGroundModel;
-
     boolean initBackgroundModel = false;
 
     public Mat proposedModel(Mat input, opencv_core.KeyPointVector surf, Mat flow) {
@@ -379,7 +378,7 @@ public class ImageProcessCPP {
         backGroundModel.copyTo(mask);
         opencv_imgproc.grabCut(input, mask,
                 new opencv_core.Rect(20, 20, input.cols() - 20, input.rows() - 20),
-                bgModel, fgModel, 3,
+                bgModel, fgModel, 5,
                 opencv_imgproc.GC_INIT_WITH_MASK);
         log("Stop Grabcut ... ");
         log("Time :" + (System.currentTimeMillis() - start));
