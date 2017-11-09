@@ -131,7 +131,7 @@ public class ControllerCPP {
                         updateImageView(gmmMeansView, mmgImageToShow);
                     }
                     if (!gaussianBlurFrame.empty() && surfKeyPoint.size() != 0 && grabcutActive.isSelected() && !flow.empty()) {
-                        Mat grabcutFrame = imgProcess.proposedModel(gaussianBlurFrame, surfKeyPoint, flow);
+                        Mat grabcutFrame = imgProcess.proposedModel(originalFrame, surfKeyPoint, flow);
                         Image mmgImageToShow = Utils.mat2Image(grabcutFrame);
                         updateImageView(grabcutView, mmgImageToShow);
 
