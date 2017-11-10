@@ -146,6 +146,7 @@
                   </AnchorPane>
               </items>
             </SplitPane>
+            <ImageView fx:id="maskView" fitHeight="230.0" fitWidth="407.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="2" GridPane.rowIndex="2" />
          </children>
       </GridPane>
    </center>
@@ -193,6 +194,7 @@
               </items>
             </SplitPane>
             <ImageView fx:id="backgroundModel" fitHeight="213.0" fitWidth="410.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="2" GridPane.rowIndex="3" />
+            <ImageView fx:id="matchesView" fitHeight="213.0" fitWidth="409.0" pickOnBounds="true" preserveRatio="true" GridPane.columnIndex="2" GridPane.rowIndex="3" />
          </children>
       </GridPane>
    </top>

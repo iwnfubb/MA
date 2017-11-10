@@ -5,8 +5,8 @@ import net.sf.javaml.core.Dataset;
 import net.sf.javaml.core.DefaultDataset;
 import net.sf.javaml.core.Instance;
 import net.sf.javaml.core.SparseInstance;
-import org.bytedeco.javacpp.indexer.FloatRawIndexer;
 import org.bytedeco.javacpp.*;
+import org.bytedeco.javacpp.indexer.FloatRawIndexer;
 import org.bytedeco.javacpp.opencv_core.Mat;
 import org.bytedeco.javacpp.opencv_core.Size;
 
@@ -341,31 +341,67 @@ public class ImageProcessCPP {
     Mat backGroundModel;
     boolean initBackgroundModel = false;
 
-    public Mat proposedModel(Mat input, opencv_core.KeyPointVector surf, Mat flow) {
+    public Mat[] proposedModel(Mat input, opencv_core.KeyPointVector surf, Mat flow) {
         if (!initBackgroundModel) {
             backGroundModel = new Mat(input.size(), opencv_core.CV_8UC1, opencv_core.Scalar.all(opencv_imgproc.GC_PR_BGD));
             initBackgroundModel = true;
-            return input;
+            return new Mat[]{input};
         }
         long start = System.currentTimeMillis();
         //update background model
         log("Update background model ... ");
         FloatRawIndexer indexer = flow.createIndexer();
+        for (int y = 0; y < indexer.rows(); y++)
+            for (int x = 0; x < indexer.cols(); x++) {
+                BytePointer ptr = backGroundModel.ptr(y, x);
+                if (ptr.get(0) == (byte) opencv_imgproc.GC_FGD)
+                    ptr.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+            }
+
         for (int i = 0; i < surf.size(); i++) {
             opencv_core.Point2f pt = surf.get(i).pt();
             float floatAtX = indexer.get((int) pt.y(), (int) pt.x(), 0);
             float floatAtY = indexer.get((int) pt.y(), (int) pt.x(), 0);
             BytePointer ptr = backGroundModel.ptr((int) pt.y(), (int) pt.x());
+            /*
+            BytePointer ptr1 = backGroundModel.ptr((int) pt.y() - 1, (int) pt.x() - 1);
+            BytePointer ptr2 = backGroundModel.ptr((int) pt.y() - 1, (int) pt.x());
+            BytePointer ptr3 = backGroundModel.ptr((int) pt.y() - 1, (int) pt.x() + 1);
+            BytePointer ptr4 = backGroundModel.ptr((int) pt.y(), (int) pt.x() - 1);
+            BytePointer ptr5 = backGroundModel.ptr((int) pt.y(), (int) pt.x() + 1);
+            BytePointer ptr6 = backGroundModel.ptr((int) pt.y() + 1, (int) pt.x() - 1);
+            BytePointer ptr7 = backGroundModel.ptr((int) pt.y() + 1, (int) pt.x());
+            BytePointer ptr8 = backGroundModel.ptr((int) pt.y() + 1, (int) pt.x() + 1);*/
+
             if (Math.abs(floatAtX) > 1.0f && Math.abs(floatAtY) > 1.0f) {
-                if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_FGD)
+                if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_FGD) {
                     ptr.put(0, (byte) opencv_imgproc.GC_FGD);
-                else if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_BGD)
+                } else if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_BGD) {
                     ptr.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+                }
             } else {
-                if (ptr.get(0) == (byte) opencv_imgproc.GC_FGD)
+                if (ptr.get(0) == (byte) opencv_imgproc.GC_FGD) {
                     ptr.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-                else if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_FGD)
+
+                 /*   ptr1.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+                    ptr2.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+                    ptr3.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+                    ptr4.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+                    ptr5.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+                    ptr6.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+                    ptr7.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+                    ptr8.put(0, (byte) opencv_imgproc.GC_PR_FGD);*/
+                } else if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_FGD) {
                     ptr.put(0, (byte) opencv_imgproc.GC_PR_BGD);
+                   /* ptr1.put(0, (byte) opencv_imgproc.GC_PR_BGD);
+                    ptr2.put(0, (byte) opencv_imgproc.GC_PR_BGD);
+                    ptr3.put(0, (byte) opencv_imgproc.GC_PR_BGD);
+                    ptr4.put(0, (byte) opencv_imgproc.GC_PR_BGD);
+                    ptr5.put(0, (byte) opencv_imgproc.GC_PR_BGD);
+                    ptr6.put(0, (byte) opencv_imgproc.GC_PR_BGD);
+                    ptr7.put(0, (byte) opencv_imgproc.GC_PR_BGD);
+                    ptr8.put(0, (byte) opencv_imgproc.GC_PR_BGD);*/
+                }
             }
         }
 
@@ -382,58 +418,47 @@ public class ImageProcessCPP {
                 opencv_imgproc.GC_INIT_WITH_MASK);
         log("Stop Grabcut ... ");
         log("Time :" + (System.currentTimeMillis() - start));
-        return mergeImageAndMask(copyOfOriginal, mask);
+        return new Mat[]{mergeImageAndMask(copyOfOriginal, mask)};
     }
 
 
     Mat previousFrame = new Mat();
     Mat previousFrameDescriptors = new Mat();
     opencv_core.KeyPointVector previousKeyPoint = new opencv_core.KeyPointVector();
+    int frameCounter = 0;
+    KeyPointsAndFeaturesVector backgroundModelTobi;
 
-    public Mat tobiModel(Mat input, opencv_core.KeyPointVector surfKeyPoints, Mat flow) {
+    public Mat[] tobiModel_Upgrade(Mat input, opencv_core.KeyPointVector surfKeyPoints, Mat flow) {
+        frameCounter++;
+        Mat copyOfOriginal = new Mat();
+        input.copyTo(copyOfOriginal);
+        log("Matching previous Frame to Current frame... ");
+        long start = System.currentTimeMillis();
+        //init - set all key points to class 0
         if (!initBackgroundModel) {
-            backGroundModel = new Mat(input.size(), opencv_core.CV_8UC1, opencv_core.Scalar.all(opencv_imgproc.GC_PR_BGD));
             input.copyTo(previousFrame);
             surf.compute(previousFrame, surfKeyPoints, previousFrameDescriptors);
             previousKeyPoint.put(surfKeyPoints);
-            initBackgroundModel = true;
-            return input;
-        }
-        long start = System.currentTimeMillis();
-        //update background model
-        log("Update background model ... ");
-        FloatRawIndexer indexer = flow.createIndexer();
-        for (int i = 0; i < surfKeyPoints.size(); i++) {
-            opencv_core.Point2f pt = surfKeyPoints.get(i).pt();
-            float floatAtX = indexer.get((int) pt.y(), (int) pt.x(), 0);
-            float floatAtY = indexer.get((int) pt.y(), (int) pt.x(), 0);
-            BytePointer ptr = backGroundModel.ptr((int) pt.y(), (int) pt.x());
-            if (Math.abs(floatAtX) > 1.0f && Math.abs(floatAtY) > 1.0f) {
-                if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_FGD)
-                    ptr.put(0, (byte) opencv_imgproc.GC_FGD);
-                else if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_BGD)
-                    ptr.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-            } else {
-                if (ptr.get(0) == (byte) opencv_imgproc.GC_FGD)
-                    ptr.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-                else if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_FGD)
-                    ptr.put(0, (byte) opencv_imgproc.GC_PR_BGD);
+            for (int i = 0; i < surfKeyPoints.size(); i++) {
+                opencv_core.KeyPoint keyPoint = surfKeyPoints.get(i);
+                keyPoint.class_id(0);
             }
+            backgroundModelTobi = new KeyPointsAndFeaturesVector(surfKeyPoints, previousFrameDescriptors);
+            initBackgroundModel = true;
+            return new Mat[]{input, input, input};
         }
 
+        //use key point detector to get background point
         log("Matching previous Frame to Current frame... ");
+        opencv_features2d.FlannBasedMatcher matcher = new opencv_features2d.FlannBasedMatcher();
         Mat currentFrameDescriptors = new Mat();
         surf.compute(input, surfKeyPoints, currentFrameDescriptors);
-
-
-        opencv_features2d.FlannBasedMatcher matcher = new opencv_features2d.FlannBasedMatcher();
-
         opencv_core.DMatchVector matches = new opencv_core.DMatchVector();
-        matcher.match(currentFrameDescriptors, previousFrameDescriptors, matches);
+        matcher.match(currentFrameDescriptors, backgroundModelTobi.descriptors, matches);
 
         double max_dist = 0;
         double min_dist = 100;
-        //-- Quick calculation of max and min distances between keypoints
+        //-- Quick calculation of max and min distances between key points
         for (int i = 0; i < currentFrameDescriptors.rows(); i++) {
             double dist = matches.get(i).distance();
             if (dist < min_dist) min_dist = dist;
@@ -446,37 +471,105 @@ public class ImageProcessCPP {
                 goodMatches.add(matches.get(i));
             }
         }
-        opencv_core.DMatchVector good_matches_Verctor = new opencv_core.DMatchVector(goodMatches.size());
-        for (int i = 0; i < goodMatches.size(); i++) {
-            good_matches_Verctor.put(i, goodMatches.get(i));
+
+        log("Update background keypoints list... ");
+        opencv_core.DMatchVector good_matches_Vector = new opencv_core.DMatchVector(goodMatches.size());
+        Mat mask = new Mat(input.size(), opencv_core.CV_8UC1, opencv_core.Scalar.all(opencv_imgproc.GC_PR_BGD));
+        log("Frame counter: " + frameCounter);
+        for (int i = 0; i < surfKeyPoints.size(); i++) {
+            opencv_core.KeyPoint keyPoint = surfKeyPoints.get(i);
+            mask.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).put(0, (byte) opencv_imgproc.GC_PR_FGD);
         }
 
-        Mat img_matches = new Mat();
-        opencv_features2d.drawMatches(currentFrame, surfKeyPoints, previousFrame, previousKeyPoint, good_matches_Verctor, img_matches);
-        input.copyTo(previousFrame);
-        previousKeyPoint.put(surfKeyPoints);
-        currentFrameDescriptors.copyTo(previousFrameDescriptors);
-        log("Finished matching");
-        return img_matches;
-    /*
-        log("Start Grabcut ... ");
+        ArrayList<Integer> good_indexes = new ArrayList<>();
+
+        for (int i = 0; i < goodMatches.size(); i++) {
+            opencv_core.DMatch dMatch = goodMatches.get(i);
+            good_indexes.add(dMatch.queryIdx());
+            opencv_core.KeyPoint keyPointQuery = surfKeyPoints.get(dMatch.queryIdx());
+            opencv_core.KeyPoint keyPointTrain = backgroundModelTobi.getKeypoint(dMatch.trainIdx());
+            //if key point is in background list then update his class
+            int current_class_id = keyPointTrain.class_id();
+            current_class_id += 1;
+            keyPointTrain.class_id(current_class_id);
+            if (euclideandistance(keyPointQuery, keyPointTrain) > 10.0)
+                keyPointTrain.class_id(0);
+
+            if (keyPointTrain.class_id() > 5)
+                mask.ptr((int) keyPointTrain.pt().y(), (int) keyPointTrain.pt().x()).put(0, (byte) opencv_imgproc.GC_PR_BGD);
+            else
+                mask.ptr((int) keyPointTrain.pt().y(), (int) keyPointTrain.pt().x()).put(0, (byte) opencv_imgproc.GC_PR_FGD);
+
+            String text = "";
+
+            text += keyPointTrain.class_id();
+
+            opencv_imgproc.putText(copyOfOriginal,
+                    text,
+                    new opencv_core.Point((int) keyPointTrain.pt().x(), (int) keyPointTrain.pt().y()),
+                    1, 2.0,
+                    new opencv_core.Scalar(0, 0, 255, 0));
+            //put key point array to key point vector to draw
+            good_matches_Vector.put(i, dMatch);
+        }
+
+        for (int i = 0; i < surfKeyPoints.size(); i++) {
+            if (!good_indexes.contains(i)) {
+                try {
+                    backgroundModelTobi.addNewKeyPointAndDescriptors(surfKeyPoints.get(i), currentFrameDescriptors.row(i));
+                } catch (KeyPointsAndFeaturesVector.KeyPointsAndFeaturesVectorException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        log("Build mask image for testing...");
+        for (
+                int y = 0; y < mask.rows(); y++)
+            for (
+                    int x = 0; x < mask.cols(); x++)
+
+            {
+                opencv_core.Scalar scalar;
+                if (mask.ptr(y, x).get(0) == opencv_imgproc.GC_BGD) {
+                    scalar = new opencv_core.Scalar(0, 0, 0, 0);
+                } else if (mask.ptr(y, x).get(0) == opencv_imgproc.GC_PR_BGD) {
+                    continue;
+                } else if (mask.ptr(y, x).get(0) == opencv_imgproc.GC_PR_FGD) {
+                    scalar = new opencv_core.Scalar(126, 126, 126, 0);
+                } else if (mask.ptr(y, x).get(0) == opencv_imgproc.GC_FGD) {
+                    scalar = new opencv_core.Scalar(255, 255, 255, 0);
+                } else {
+                    continue;
+                }
+                opencv_imgproc.circle(copyOfOriginal,
+                        new opencv_core.Point(x, y),
+                        5,
+                        scalar, -5, 4, 0);
+            }
+
+        log("Start grabcutting...");
+
         Mat bgModel = new Mat(new Size(65, 1), opencv_core.CV_64FC1, opencv_core.Scalar.all(0));
         Mat fgModel = new Mat(new Size(65, 1), opencv_core.CV_64FC1, opencv_core.Scalar.all(0));
-        Mat mask = new Mat();
-        Mat copyOfOriginal = new Mat();
-        input.copyTo(copyOfOriginal);
-        backGroundModel.copyTo(mask);
-        /*opencv_imgproc.grabCut(input, mask,
+        opencv_imgproc.grabCut(input, mask,
                 new opencv_core.Rect(20, 20, input.cols() - 20, input.rows() - 20),
                 bgModel, fgModel, 3,
                 opencv_imgproc.GC_INIT_WITH_MASK);
-        log("Stop Grabcut ... ");
-        log("Time :" + (System.currentTimeMillis() - start));
+
+        Mat img_matches = new Mat();
+        opencv_features2d.drawMatches(currentFrame, surfKeyPoints, previousFrame, previousKeyPoint, good_matches_Vector, img_matches);
+        //update previous values
         input.copyTo(previousFrame);
         previousKeyPoint.put(surfKeyPoints);
         currentFrameDescriptors.copyTo(previousFrameDescriptors);
-        return mergeImageAndMask(copyOfOriginal, mask);
-        */
+        log("Finished Tobi");
+        log("Time: " + (System.currentTimeMillis() - start));
+        return new Mat[]{mergeImageAndMask(input, mask), img_matches, copyOfOriginal};
+    }
+
+    private double euclideandistance(opencv_core.KeyPoint keyPoint1, opencv_core.KeyPoint keyPoint2) {
+        return Math.sqrt(Math.pow(keyPoint1.pt().x() - keyPoint2.pt().x(), 2) + Math.pow(keyPoint1.pt().y() - keyPoint2.pt().y(), 2));
     }
 
     private Mat mergeImageAndMask(Mat image, Mat mask) {

@@ -34,6 +34,10 @@ public class ControllerCPP {
     @FXML
     private ImageView grabcutView;
     @FXML
+    private ImageView matchesView;
+    @FXML
+    private ImageView maskView;
+    @FXML
     private CheckBox opticalFlowActive;
     @FXML
     private CheckBox surfImgActive;
@@ -131,9 +135,15 @@ public class ControllerCPP {
                         updateImageView(gmmMeansView, mmgImageToShow);
                     }
                     if (!gaussianBlurFrame.empty() && surfKeyPoint.size() != 0 && grabcutActive.isSelected() && !flow.empty()) {
-                        Mat grabcutFrame = imgProcess.proposedModel(originalFrame, surfKeyPoint, flow);
-                        Image mmgImageToShow = Utils.mat2Image(grabcutFrame);
+                        Mat[] grabcutFrameAndMatches = imgProcess.tobiModel_Upgrade(originalFrame, surfKeyPoint, flow);
+                        Image mmgImageToShow = Utils.mat2Image(grabcutFrameAndMatches[0]);
                         updateImageView(grabcutView, mmgImageToShow);
+                        if (grabcutFrameAndMatches.length == 3) {
+                            mmgImageToShow = Utils.mat2Image(grabcutFrameAndMatches[1]);
+                            updateImageView(matchesView, mmgImageToShow);
+                            mmgImageToShow = Utils.mat2Image(grabcutFrameAndMatches[2]);
+                            updateImageView(maskView, mmgImageToShow);
+                        }
 
                     }
                 };
