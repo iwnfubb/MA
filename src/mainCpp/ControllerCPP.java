@@ -68,8 +68,6 @@ public class ControllerCPP {
     // the id of the camera to be used
     private static int cameraId = 1;
 
-    private Mat prevgray = new Mat();
-
     /**
      * The action triggered by pushing the button on the GUI
      *
