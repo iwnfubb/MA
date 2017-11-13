@@ -399,15 +399,7 @@ public class ImageProcessCPP {
         long start = System.currentTimeMillis();
         //init - set all key points to class 0
         if (!initBackgroundModel) {
-            input.copyTo(previousFrame);
-            surf.compute(previousFrame, surfKeyPoints, previousFrameDescriptors);
-            previousKeyPoint.put(surfKeyPoints);
-            for (int i = 0; i < surfKeyPoints.size(); i++) {
-                opencv_core.KeyPoint keyPoint = surfKeyPoints.get(i);
-                keyPoint.class_id(0);
-            }
-            backgroundModelTobi = new KeyPointsAndFeaturesVector(surfKeyPoints, previousFrameDescriptors);
-            initBackgroundModel = true;
+            initBackgroundModel(input, surfKeyPoints);
             return new Mat[]{input, input, input};
         }
 
@@ -442,6 +434,7 @@ public class ImageProcessCPP {
         for (int i = 0; i < surfKeyPoints.size(); i++) {
             opencv_core.KeyPoint keyPoint = surfKeyPoints.get(i);
             mask.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).put(0, (byte) opencv_imgproc.GC_PR_FGD);
+            keyPoint.class_id(0);
         }
 
         ArrayList<Integer> good_indexes = new ArrayList<>();
@@ -451,6 +444,11 @@ public class ImageProcessCPP {
             good_indexes.add(dMatch.queryIdx());
             opencv_core.KeyPoint keyPointQuery = surfKeyPoints.get(dMatch.queryIdx());
             opencv_core.KeyPoint keyPointTrain = backgroundModelTobi.getKeypoint(dMatch.trainIdx());
+
+            //update new position for background model
+            keyPointTrain.pt().x(keyPointQuery.pt().x());
+            keyPointTrain.pt().y(keyPointQuery.pt().y());
+
             //if key point is in background list then update his class
             int current_class_id = keyPointTrain.class_id();
             current_class_id += 1;
@@ -479,6 +477,7 @@ public class ImageProcessCPP {
         }
 
         for (int i = 0; i < surfKeyPoints.size(); i++) {
+            // if the surf point is NOT in background model then add them into
             if (!good_indexes.contains(i)) {
                 try {
                     backgroundModelTobi.addNewKeyPointAndDescriptors(surfKeyPoints.get(i), currentFrameDescriptors.row(i));
@@ -520,6 +519,18 @@ public class ImageProcessCPP {
         log("Finished Tobi");
         log("Time: " + (System.currentTimeMillis() - start));
         return new Mat[]{mergeImageAndMask(input, mask), img_matches, copyOfOriginal};
+    }
+
+    private void initBackgroundModel(opencv_core.Mat input, opencv_core.KeyPointVector surfKeyPoints) {
+        input.copyTo(previousFrame);
+        surf.compute(previousFrame, surfKeyPoints, previousFrameDescriptors);
+        previousKeyPoint.put(surfKeyPoints);
+        for (int i = 0; i < surfKeyPoints.size(); i++) {
+            opencv_core.KeyPoint keyPoint = surfKeyPoints.get(i);
+            keyPoint.class_id(0);
+        }
+        backgroundModelTobi = new KeyPointsAndFeaturesVector(surfKeyPoints, previousFrameDescriptors);
+        initBackgroundModel = true;
     }
 
     private double euclideandistance(opencv_core.KeyPoint keyPoint1, opencv_core.KeyPoint keyPoint2) {
