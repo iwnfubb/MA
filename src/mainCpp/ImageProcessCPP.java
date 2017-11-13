@@ -21,6 +21,13 @@ public class ImageProcessCPP {
     private Size gaussianFilterSize = (new Size(3, 3));
     opencv_xfeatures2d.SURF surf;
     private Mat prevgray = new Mat();
+    Mat previousFrame = new Mat();
+    Mat previousFrameDescriptors = new Mat();
+    opencv_core.KeyPointVector previousKeyPoint = new opencv_core.KeyPointVector();
+    int frameCounter = 0;
+    KeyPointsAndFeaturesVector backgroundModelTobi;
+    Mat backGroundModel;
+    boolean initBackgroundModel = false;
 
     public ImageProcessCPP(opencv_videoio.VideoCapture capture) {
         this.capture = capture;
@@ -179,7 +186,6 @@ public class ImageProcessCPP {
         for (int i = 0; i < surfKeyPoint.size(); i++) {
             opencv_core.KeyPoint keyPoint = surfKeyPoint.get(i);
 
-
             byte b = (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(0));
             byte g = (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(1));
             byte r = (copyOfOriginal.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).get(2));
@@ -189,12 +195,9 @@ public class ImageProcessCPP {
         }
         System.out.println("Done1");
 
-
         opencv_ml.EM em = opencv_ml.EM.create();
         em.setClustersNumber(3);
-        //gaussianBlurFrame.reshape(1, gaussianBlurFrame.rows() * gaussianBlurFrame.cols()).convertTo(samples, opencv_core.CV_32FC1, 1.0 / 255.0, 0.0);
         samples.convertTo(samples, opencv_core.CV_32FC1, 1.0 / 255.0, 0.0);
-        //em.train(samples, 3, labels);
         em.trainEM(samples, new Mat(), labels, probs);
         System.out.println("Done2");
 
@@ -225,8 +228,7 @@ public class ImageProcessCPP {
         Mat labels = new Mat(new opencv_core.Size(1, (int) surfKeyPoint.size()), opencv_core.CV_32S);
         Mat copyOfOriginal = new Mat();
         input.copyTo(copyOfOriginal);
-        float width = copyOfOriginal.arrayWidth();
-        float height = copyOfOriginal.arrayHeight();
+        //Create samples based on optical flow
         Mat samples = new Mat(new opencv_core.Size(2, (int) surfKeyPoint.size()), opencv_core.CV_32F);
         FloatRawIndexer indexer = flow.createIndexer();
         for (int i = 0; i < surfKeyPoint.size(); i++) {
@@ -338,9 +340,6 @@ public class ImageProcessCPP {
         return mergeImageAndMask(copyOfOriginal, mask);
     }
 
-    Mat backGroundModel;
-    boolean initBackgroundModel = false;
-
     public Mat[] proposedModel(Mat input, opencv_core.KeyPointVector surf, Mat flow) {
         if (!initBackgroundModel) {
             backGroundModel = new Mat(input.size(), opencv_core.CV_8UC1, opencv_core.Scalar.all(opencv_imgproc.GC_PR_BGD));
@@ -354,8 +353,9 @@ public class ImageProcessCPP {
         for (int y = 0; y < indexer.rows(); y++)
             for (int x = 0; x < indexer.cols(); x++) {
                 BytePointer ptr = backGroundModel.ptr(y, x);
-                if (ptr.get(0) == (byte) opencv_imgproc.GC_FGD)
+                if (ptr.get(0) == (byte) opencv_imgproc.GC_FGD) {
                     ptr.put(0, (byte) opencv_imgproc.GC_PR_FGD);
+                }
             }
 
         for (int i = 0; i < surf.size(); i++) {
@@ -363,15 +363,6 @@ public class ImageProcessCPP {
             float floatAtX = indexer.get((int) pt.y(), (int) pt.x(), 0);
             float floatAtY = indexer.get((int) pt.y(), (int) pt.x(), 0);
             BytePointer ptr = backGroundModel.ptr((int) pt.y(), (int) pt.x());
-            /*
-            BytePointer ptr1 = backGroundModel.ptr((int) pt.y() - 1, (int) pt.x() - 1);
-            BytePointer ptr2 = backGroundModel.ptr((int) pt.y() - 1, (int) pt.x());
-            BytePointer ptr3 = backGroundModel.ptr((int) pt.y() - 1, (int) pt.x() + 1);
-            BytePointer ptr4 = backGroundModel.ptr((int) pt.y(), (int) pt.x() - 1);
-            BytePointer ptr5 = backGroundModel.ptr((int) pt.y(), (int) pt.x() + 1);
-            BytePointer ptr6 = backGroundModel.ptr((int) pt.y() + 1, (int) pt.x() - 1);
-            BytePointer ptr7 = backGroundModel.ptr((int) pt.y() + 1, (int) pt.x());
-            BytePointer ptr8 = backGroundModel.ptr((int) pt.y() + 1, (int) pt.x() + 1);*/
 
             if (Math.abs(floatAtX) > 1.0f && Math.abs(floatAtY) > 1.0f) {
                 if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_FGD) {
@@ -382,51 +373,23 @@ public class ImageProcessCPP {
             } else {
                 if (ptr.get(0) == (byte) opencv_imgproc.GC_FGD) {
                     ptr.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-
-                 /*   ptr1.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-                    ptr2.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-                    ptr3.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-                    ptr4.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-                    ptr5.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-                    ptr6.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-                    ptr7.put(0, (byte) opencv_imgproc.GC_PR_FGD);
-                    ptr8.put(0, (byte) opencv_imgproc.GC_PR_FGD);*/
                 } else if (ptr.get(0) == (byte) opencv_imgproc.GC_PR_FGD) {
                     ptr.put(0, (byte) opencv_imgproc.GC_PR_BGD);
-                   /* ptr1.put(0, (byte) opencv_imgproc.GC_PR_BGD);
-                    ptr2.put(0, (byte) opencv_imgproc.GC_PR_BGD);
-                    ptr3.put(0, (byte) opencv_imgproc.GC_PR_BGD);
-                    ptr4.put(0, (byte) opencv_imgproc.GC_PR_BGD);
-                    ptr5.put(0, (byte) opencv_imgproc.GC_PR_BGD);
-                    ptr6.put(0, (byte) opencv_imgproc.GC_PR_BGD);
-                    ptr7.put(0, (byte) opencv_imgproc.GC_PR_BGD);
-                    ptr8.put(0, (byte) opencv_imgproc.GC_PR_BGD);*/
                 }
             }
         }
 
         log("Start Grabcut ... ");
-        Mat bgModel = new Mat(new Size(65, 1), opencv_core.CV_64FC1, opencv_core.Scalar.all(0));
-        Mat fgModel = new Mat(new Size(65, 1), opencv_core.CV_64FC1, opencv_core.Scalar.all(0));
         Mat mask = new Mat();
         Mat copyOfOriginal = new Mat();
         input.copyTo(copyOfOriginal);
         backGroundModel.copyTo(mask);
-        opencv_imgproc.grabCut(input, mask,
-                new opencv_core.Rect(20, 20, input.cols() - 20, input.rows() - 20),
-                bgModel, fgModel, 5,
-                opencv_imgproc.GC_INIT_WITH_MASK);
+        mask = grabCutWithMask(input, mask);
         log("Stop Grabcut ... ");
         log("Time :" + (System.currentTimeMillis() - start));
         return new Mat[]{mergeImageAndMask(copyOfOriginal, mask)};
     }
 
-
-    Mat previousFrame = new Mat();
-    Mat previousFrameDescriptors = new Mat();
-    opencv_core.KeyPointVector previousKeyPoint = new opencv_core.KeyPointVector();
-    int frameCounter = 0;
-    KeyPointsAndFeaturesVector backgroundModelTobi;
 
     public Mat[] tobiModel_Upgrade(Mat input, opencv_core.KeyPointVector surfKeyPoints, Mat flow) {
         frameCounter++;
@@ -492,13 +455,15 @@ public class ImageProcessCPP {
             int current_class_id = keyPointTrain.class_id();
             current_class_id += 1;
             keyPointTrain.class_id(current_class_id);
-            if (euclideandistance(keyPointQuery, keyPointTrain) > 10.0)
+            if (euclideandistance(keyPointQuery, keyPointTrain) > 10.0) {
                 keyPointTrain.class_id(0);
+            }
 
-            if (keyPointTrain.class_id() > 5)
+            if (keyPointTrain.class_id() > 5) {
                 mask.ptr((int) keyPointTrain.pt().y(), (int) keyPointTrain.pt().x()).put(0, (byte) opencv_imgproc.GC_PR_BGD);
-            else
+            } else {
                 mask.ptr((int) keyPointTrain.pt().y(), (int) keyPointTrain.pt().x()).put(0, (byte) opencv_imgproc.GC_PR_FGD);
+            }
 
             String text = "";
 
@@ -524,12 +489,8 @@ public class ImageProcessCPP {
         }
 
         log("Build mask image for testing...");
-        for (
-                int y = 0; y < mask.rows(); y++)
-            for (
-                    int x = 0; x < mask.cols(); x++)
-
-            {
+        for (int y = 0; y < mask.rows(); y++)
+            for (int x = 0; x < mask.cols(); x++) {
                 opencv_core.Scalar scalar;
                 if (mask.ptr(y, x).get(0) == opencv_imgproc.GC_BGD) {
                     scalar = new opencv_core.Scalar(0, 0, 0, 0);
@@ -549,14 +510,7 @@ public class ImageProcessCPP {
             }
 
         log("Start grabcutting...");
-
-        Mat bgModel = new Mat(new Size(65, 1), opencv_core.CV_64FC1, opencv_core.Scalar.all(0));
-        Mat fgModel = new Mat(new Size(65, 1), opencv_core.CV_64FC1, opencv_core.Scalar.all(0));
-        opencv_imgproc.grabCut(input, mask,
-                new opencv_core.Rect(20, 20, input.cols() - 20, input.rows() - 20),
-                bgModel, fgModel, 3,
-                opencv_imgproc.GC_INIT_WITH_MASK);
-
+        mask = grabCutWithMask(input, mask);
         Mat img_matches = new Mat();
         opencv_features2d.drawMatches(currentFrame, surfKeyPoints, previousFrame, previousKeyPoint, good_matches_Vector, img_matches);
         //update previous values
@@ -579,8 +533,9 @@ public class ImageProcessCPP {
             for (int x = 0; x < newImg.cols(); x++) {
                 for (int c = 0; c < newImg.channels(); c++) {
                     byte maskLabel = mask.ptr(y, x).get(0);
-                    if (maskLabel == 2 || maskLabel == 0)
+                    if (maskLabel == 2 || maskLabel == 0) {
                         newImg.ptr(y, x).put(c, (byte) 0);
+                    }
                 }
             }
         return newImg;
@@ -593,6 +548,16 @@ public class ImageProcessCPP {
             result[i] = array[array.length - i - 1];
         }
         return result;
+    }
+
+    private Mat grabCutWithMask(opencv_core.Mat input, opencv_core.Mat mask) {
+        Mat bgModel = new Mat(new Size(65, 1), opencv_core.CV_64FC1, opencv_core.Scalar.all(0));
+        Mat fgModel = new Mat(new Size(65, 1), opencv_core.CV_64FC1, opencv_core.Scalar.all(0));
+        opencv_imgproc.grabCut(input, mask,
+                new opencv_core.Rect(20, 20, input.cols() - 20, input.rows() - 20),
+                bgModel, fgModel, 5,
+                opencv_imgproc.GC_INIT_WITH_MASK);
+        return mask;
     }
 
     private void log(Object o) {
