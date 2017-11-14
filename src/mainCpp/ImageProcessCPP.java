@@ -1,5 +1,6 @@
 package mainCpp;
 
+import algorithms.Clustering;
 import net.sf.javaml.clustering.OPTICS;
 import net.sf.javaml.core.Dataset;
 import net.sf.javaml.core.DefaultDataset;
@@ -126,7 +127,7 @@ public class ImageProcessCPP {
     }
 
     public Mat clusteringCoordinateDBSCAN(opencv_core.Mat input, opencv_core.KeyPointVector surfKeyPoint, double eps, int minP) {
-        System.out.println("Starting Clustering Position DBSCAN ...");
+        System.out.println("Starting Clustering Position My_DBSCAN ...");
         long startTime = System.currentTimeMillis();
         Mat copyOfOriginal = new Mat();
         input.copyTo(copyOfOriginal);
@@ -147,9 +148,9 @@ public class ImageProcessCPP {
         OPTICS optics = new OPTICS(eps, minP);
         Dataset[] cluster = optics.cluster(data);
 
-        //===== DBSCAN =====
+        //===== My_DBSCAN =====
         //DensityBasedSpatialClustering dbscan = new DensityBasedSpatialClustering(eps, minP);
-        //Dataset[] cluster = dbscan.cluster(data);s
+        //Dataset[] cluster = dbscan.cluster(data);
 
         System.out.println("Done2");
         for (int i = 0; i < cluster.length; i++) {
@@ -391,7 +392,7 @@ public class ImageProcessCPP {
     }
 
 
-    public Mat[] tobiModel_Upgrade(Mat input, opencv_core.KeyPointVector surfKeyPoints, Mat flow) {
+    public Mat[] tobiModel_Upgrade(Mat input, opencv_core.KeyPointVector surfKeyPoints, Mat flow, double eps, int minP) {
         frameCounter++;
         Mat copyOfOriginal = new Mat();
         input.copyTo(copyOfOriginal);
@@ -410,27 +411,15 @@ public class ImageProcessCPP {
         surf.compute(input, surfKeyPoints, currentFrameDescriptors);
         opencv_core.DMatchVector matches = new opencv_core.DMatchVector();
         matcher.match(currentFrameDescriptors, backgroundModelTobi.descriptors, matches);
-
-        double max_dist = 0;
-        double min_dist = 100;
         //-- Quick calculation of max and min distances between key points
-        for (int i = 0; i < currentFrameDescriptors.rows(); i++) {
-            double dist = matches.get(i).distance();
-            if (dist < min_dist) min_dist = dist;
-            if (dist > max_dist) max_dist = dist;
-        }
-
-        ArrayList<opencv_core.DMatch> goodMatches = new ArrayList<>();
-        for (int i = 0; i < currentFrameDescriptors.rows(); i++) {
-            if (matches.get(i).distance() <= Math.max(2 * min_dist, 0.02)) {
-                goodMatches.add(matches.get(i));
-            }
-        }
+        ArrayList<opencv_core.DMatch> goodMatches = calculateGoodMatches(matches);
 
         log("Update background keypoints list... ");
         opencv_core.DMatchVector good_matches_Vector = new opencv_core.DMatchVector(goodMatches.size());
-        Mat mask = new Mat(input.size(), opencv_core.CV_8UC1, opencv_core.Scalar.all(opencv_imgproc.GC_PR_BGD));
+        Mat mask = new Mat(input.size(), opencv_core.CV_8UC1, opencv_core.Scalar.all((byte) opencv_imgproc.GC_PR_BGD));
+
         log("Frame counter: " + frameCounter);
+
         for (int i = 0; i < surfKeyPoints.size(); i++) {
             opencv_core.KeyPoint keyPoint = surfKeyPoints.get(i);
             mask.ptr((int) keyPoint.pt().y(), (int) keyPoint.pt().x()).put(0, (byte) opencv_imgproc.GC_PR_FGD);
@@ -438,26 +427,27 @@ public class ImageProcessCPP {
         }
 
         ArrayList<Integer> good_indexes = new ArrayList<>();
-
         for (int i = 0; i < goodMatches.size(); i++) {
             opencv_core.DMatch dMatch = goodMatches.get(i);
             good_indexes.add(dMatch.queryIdx());
             opencv_core.KeyPoint keyPointQuery = surfKeyPoints.get(dMatch.queryIdx());
             opencv_core.KeyPoint keyPointTrain = backgroundModelTobi.getKeypoint(dMatch.trainIdx());
 
-            //update new position for background model
-            keyPointTrain.pt().x(keyPointQuery.pt().x());
-            keyPointTrain.pt().y(keyPointQuery.pt().y());
-
             //if key point is in background list then update his class
             int current_class_id = keyPointTrain.class_id();
             current_class_id += 1;
             keyPointTrain.class_id(current_class_id);
+
             if (euclideandistance(keyPointQuery, keyPointTrain) > 10.0) {
+            //if (Math.abs(flow.ptr((int) keyPointQuery.pt().y(), (int) keyPointQuery.pt().x()).get(0)) > 20) {
                 keyPointTrain.class_id(0);
             }
 
-            if (keyPointTrain.class_id() > 5) {
+            //update new position for background model
+            keyPointTrain.pt().x(keyPointQuery.pt().x());
+            keyPointTrain.pt().y(keyPointQuery.pt().y());
+
+            if (keyPointTrain.class_id() > 0) {
                 mask.ptr((int) keyPointTrain.pt().y(), (int) keyPointTrain.pt().x()).put(0, (byte) opencv_imgproc.GC_PR_BGD);
             } else {
                 mask.ptr((int) keyPointTrain.pt().y(), (int) keyPointTrain.pt().x()).put(0, (byte) opencv_imgproc.GC_PR_FGD);
@@ -487,6 +477,7 @@ public class ImageProcessCPP {
             }
         }
 
+        /*
         log("Build mask image for testing...");
         for (int y = 0; y < mask.rows(); y++)
             for (int x = 0; x < mask.cols(); x++) {
@@ -506,10 +497,16 @@ public class ImageProcessCPP {
                         new opencv_core.Point(x, y),
                         5,
                         scalar, -5, 4, 0);
-            }
+            }*/
+
+        log("Clustering...");
+        Dataset data = Clustering.generateDatasetFrom_X_Y_Time(surfKeyPoints, mask);
+        Clustering.My_OPTICS myOptics = new Clustering.My_OPTICS(eps, minP);
+        Dataset[] cluster = myOptics.cluster(data);
+        copyOfOriginal = Clustering.drawClusters(copyOfOriginal, cluster);
 
         log("Start grabcutting...");
-        mask = grabCutWithMask(input, mask);
+        //mask = grabCutWithMask(input, mask);
         Mat img_matches = new Mat();
         opencv_features2d.drawMatches(currentFrame, surfKeyPoints, previousFrame, previousKeyPoint, good_matches_Vector, img_matches);
         //update previous values
@@ -569,6 +566,25 @@ public class ImageProcessCPP {
                 bgModel, fgModel, 5,
                 opencv_imgproc.GC_INIT_WITH_MASK);
         return mask;
+    }
+
+    private ArrayList<opencv_core.DMatch> calculateGoodMatches(opencv_core.DMatchVector matches) {
+        double max_dist = 0;
+        double min_dist = 100;
+        //-- Quick calculation of max and min distances between key points
+        for (int i = 0; i < matches.size(); i++) {
+            double dist = matches.get(i).distance();
+            if (dist < min_dist) min_dist = dist;
+            if (dist > max_dist) max_dist = dist;
+        }
+
+        ArrayList<opencv_core.DMatch> goodMatches = new ArrayList<>();
+        for (int i = 0; i < matches.size(); i++) {
+            if (matches.get(i).distance() <= Math.max(2 * min_dist, 0.02)) {
+                goodMatches.add(matches.get(i));
+            }
+        }
+        return goodMatches;
     }
 
     private void log(Object o) {

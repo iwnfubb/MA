@@ -66,7 +66,7 @@ public class ControllerCPP {
     // a flag to change the button behavior
     private boolean cameraActive = false;
     // the id of the camera to be used
-    private static int cameraId = 1;
+    private static int cameraId = 0;
 
     /**
      * The action triggered by pushing the button on the GUI
@@ -116,24 +116,24 @@ public class ControllerCPP {
                         Image mmgImageToShow = Utils.mat2Image(clusteringCoordinateGMM);
                         updateImageView(gmmWeightView, mmgImageToShow);
                     }
+                    double eps;
+                    int minP;
+                    try {
+                        eps = Double.parseDouble(epsilon.getText());
+                        minP = Integer.parseInt(minPoints.getText());
+                    } catch (NumberFormatException e) {
+                        System.out.println("Error by Parsing String");
+                        eps = 0.05d;
+                        minP = 10;
+                    }
                     if (!gaussianBlurFrame.empty() && clusteringActive.isSelected() && surfKeyPoint.size() != 0) {
                         //clusteringCoordinateKmeans(surfKeyPoint, originalFrame, flow);
-                        double eps;
-                        int minP;
-                        try {
-                            eps = Double.parseDouble(epsilon.getText());
-                            minP = Integer.parseInt(minPoints.getText());
-                        } catch (NumberFormatException e) {
-                            System.out.println("Error by Parsing String");
-                            eps = 0.05d;
-                            minP = 10;
-                        }
                         Mat classificationFrame = imgProcess.clusteringCoordinateDBSCAN(gaussianBlurFrame, surfKeyPoint, eps, minP);
                         Image mmgImageToShow = Utils.mat2Image(classificationFrame);
                         updateImageView(gmmMeansView, mmgImageToShow);
                     }
                     if (!gaussianBlurFrame.empty() && surfKeyPoint.size() != 0 && grabcutActive.isSelected() && !flow.empty()) {
-                        Mat[] grabcutFrameAndMatches = imgProcess.tobiModel_Upgrade(originalFrame, surfKeyPoint, flow);
+                        Mat[] grabcutFrameAndMatches = imgProcess.tobiModel_Upgrade(originalFrame, surfKeyPoint, flow, eps, minP);
                         Image mmgImageToShow = Utils.mat2Image(grabcutFrameAndMatches[0]);
                         updateImageView(grabcutView, mmgImageToShow);
                         if (grabcutFrameAndMatches.length == 3) {
