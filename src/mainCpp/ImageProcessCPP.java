@@ -437,9 +437,10 @@ public class ImageProcessCPP {
             int current_class_id = keyPointTrain.class_id();
             current_class_id += 1;
             keyPointTrain.class_id(current_class_id);
+            keyPointQuery.class_id(current_class_id);
 
             if (euclideandistance(keyPointQuery, keyPointTrain) > 10.0) {
-            //if (Math.abs(flow.ptr((int) keyPointQuery.pt().y(), (int) keyPointQuery.pt().x()).get(0)) > 20) {
+                //if (Math.abs(flow.ptr((int) keyPointQuery.pt().y(), (int) keyPointQuery.pt().x()).get(0)) > 20) {
                 keyPointTrain.class_id(0);
             }
 
@@ -476,8 +477,7 @@ public class ImageProcessCPP {
                 }
             }
         }
-
-        /*
+/*
         log("Build mask image for testing...");
         for (int y = 0; y < mask.rows(); y++)
             for (int x = 0; x < mask.cols(); x++) {
@@ -497,16 +497,22 @@ public class ImageProcessCPP {
                         new opencv_core.Point(x, y),
                         5,
                         scalar, -5, 4, 0);
-            }*/
-
+            }
+*/
         log("Clustering...");
         Dataset data = Clustering.generateDatasetFrom_X_Y_Time(surfKeyPoints, mask);
         Clustering.My_OPTICS myOptics = new Clustering.My_OPTICS(eps, minP);
         Dataset[] cluster = myOptics.cluster(data);
-        copyOfOriginal = Clustering.drawClusters(copyOfOriginal, cluster);
+        opencv_core.Scalar[] colors = new opencv_core.Scalar[]{
+                new opencv_core.Scalar(255, 0, 0, 0),
+                new opencv_core.Scalar(0, 255, 0, 0),
+                new opencv_core.Scalar(0, 0, 255, 0),
+                new opencv_core.Scalar(255, 255, 0, 0),
+                new opencv_core.Scalar(0, 255, 255, 0)};
+        copyOfOriginal = Clustering.drawClusters(copyOfOriginal, cluster, colors);
 
         log("Start grabcutting...");
-        //mask = grabCutWithMask(input, mask);
+        mask = grabCutWithMask(input, mask);
         Mat img_matches = new Mat();
         opencv_features2d.drawMatches(currentFrame, surfKeyPoints, previousFrame, previousKeyPoint, good_matches_Vector, img_matches);
         //update previous values
